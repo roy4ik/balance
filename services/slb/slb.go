@@ -72,6 +72,18 @@ func New(config Config, selector Selector) (*Slb, error) {
 	return s, nil
 }
 
+// Runs the SLB with a server that listens to requests on the ListenAddress, and ListenPort.
+// The server is proxying the requests to the backend servers.
+func (s *Slb) Run() error {
+	defer s.server.Close()
+
+	slog.Info("SLB started at: " + s.server.Addr + ":" + s.cfg.Postfix())
+
+	err := s.server.ListenAndServe()
+	slog.Error(err.Error())
+	return err
+}
+
 // ServeHTTP wraps the endpoint selection and backend ServerHTTP call so that it can be used as a http.HandlerFunc / by server Mux
 func (s *Slb) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	server, err := s.selector.Select()

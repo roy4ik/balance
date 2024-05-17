@@ -3,10 +3,13 @@ package slb
 import (
 	"balance/pkg/mock"
 	"fmt"
+	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -93,6 +96,49 @@ func TestSLB(t *testing.T) {
 				_, err := New(Config{Endpoints: mockServers}, &SelectorMock{})
 				require.Error(t, err)
 				require.Containsf(t, err.Error(), ErrFailedToParseServerUrl(fmt.Errorf("")).Error(), "")
+			},
+		},
+		{
+			name: "Run Happy Flow",
+			t:    t,
+			testFunc: func(t *testing.T) {
+				// Generate mock servers
+				mockServers := mock.GenerateServers(3)
+				// Chose a random but realistic port range
+				listenPort := mock.RandomPort()
+				listenAddress := &net.IPAddr{IP: []byte("localhost")}
+
+				expectedRespBody := "OK"
+				expectedRespStatus := http.StatusOK
+				// initiate SLB
+				slb, err := New(
+					Config{Endpoints: mockServers, ListenPort: listenPort}, &SelectorMock{
+						expectedResponse: http.Response{
+							StatusCode: expectedRespStatus,
+							Body:       io.NopCloser(strings.NewReader(expectedRespBody))},
+					})
+				require.NoError(t, err)
+
+				// run SLB
+				var runErr = make(chan error, 1)
+				go func(t *testing.T, slb *Slb) {
+					defer close(runErr)
+					runErr <- slb.Run()
+					require.NoError(t, err)
+				}(t, slb)
+
+				// send request to SLB
+				targetUrl := "http://" + string(listenAddress.IP) + ":" + listenPort + "/food"
+				slog.Info("sending request to " + targetUrl)
+				resp, err := http.Get(targetUrl)
+				require.NoError(t, err)
+				defer resp.Body.Close()
+
+				// validate response
+				body, err := io.ReadAll(resp.Body)
+				require.NoError(t, err)
+				require.Equal(t, string(body), expectedRespBody)
+				require.Equal(t, resp.StatusCode, expectedRespStatus)
 			},
 		},
 	}
