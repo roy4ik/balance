@@ -1,0 +1,43 @@
+syntax = "proto3";
+import "google/protobuf/empty.proto";
+
+option go_package = "../gen";
+
+service Balance {
+  // Sets the configuration of the Software Load Balancer before its started.
+  // If the loadbalancer is running, 
+  // it will shut it down to start with the new configuration
+  rpc Configure (Config) returns (google.protobuf.Empty);
+  // Returns the currently used configuration
+  rpc Configuration (google.protobuf.Empty) returns (Config);
+  // Returns the currently used strategy
+  rpc Run (google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc Stop (google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc Add (Server) returns (google.protobuf.Empty);
+  rpc Remove (Server) returns (google.protobuf.Empty);
+}
+
+message Server {
+  string address = 1;
+}
+
+// LoadBalancer strategy (algorithm to use)
+enum SelectorStrategy {
+  SELECTOR_STRATEGY_UNSPECIFIED = 0;
+  SELECTOR_STRATEGY_ROUND_ROBIN = 1;
+}
+
+message Config {
+  // Load balancer backend endpoints to use
+  repeated Server endpoints = 1;
+  // Network port that the frontend server listens on
+  string listen_port = 2;
+  // Frontend address (without port)
+  string listen_address = 3;
+  // The address postfix for which the slb forwards requests
+  string handle_postfix = 4;
+  // Load balancer Strategy (algorithm)
+  SelectorStrategy strategy = 5;
+  // load balancer api port
+  uint32 api_port = 6;
+}
