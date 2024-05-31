@@ -105,3 +105,14 @@ func (s *Slb) Stop() error {
 	slog.Info("SLB stopping")
 	return s.server.Shutdown(ctx)
 }
+
+// returns the current configuration of the SLB with updated endpoints
+func (s *Slb) Configuration() Config {
+	cfg := s.cfg
+	var err error
+	cfg.Endpoints, err = s.selector.EndPoints()
+	if err != nil {
+		slog.Error("could not update endpoints list")
+	}
+	return s.cfg
+}
