@@ -2,10 +2,12 @@
 package slb
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httputil"
+	"time"
 )
 
 var (
@@ -92,4 +94,14 @@ func (s *Slb) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		slog.Error(ErrSelectionFailed(err).Error())
 	}
 	server.Handler.ServeHTTP(rw, r)
+}
+
+// Gracefully stops the SLB server, if it cannot gracefully shut down, it will stop it immediately
+func (s *Slb) Stop() error {
+	defer s.server.Close()
+	ctx, cancelFunc := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancelFunc()
+
+	slog.Info("SLB stopping")
+	return s.server.Shutdown(ctx)
 }
