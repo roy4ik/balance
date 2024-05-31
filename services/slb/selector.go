@@ -8,5 +8,6 @@ type EndpointsHandler interface {
 }
 type Selector interface {
 	Select() (*http.Server, error)
+	EndPoints() ([]*http.Server, error)
 	EndpointsHandler
 }
