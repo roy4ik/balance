@@ -1,0 +1,8 @@
+FROM go-build:latest as builder
+
+COPY . .
+RUN go mod download
+RUN go generate ./services/...
+RUN go test ./...
+RUN go build -o ./balance
+
