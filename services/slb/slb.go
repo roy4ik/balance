@@ -83,7 +83,9 @@ func (s *Slb) Run() error {
 	slog.Info("SLB started at: " + s.server.Addr + ":" + s.cfg.Postfix())
 
 	err := s.server.ListenAndServe()
-	slog.Error(err.Error())
+	if err != nil {
+		slog.Error(err.Error())
+	}
 	return err
 }
 
