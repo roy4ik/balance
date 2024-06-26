@@ -1,0 +1,181 @@
+//go:build integration
+// +build integration
+
+package integration
+
+import (
+	"context"
+	"strings"
+	"testing"
+	"time"
+
+	api "balance/gen"
+
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/client"
+	"github.com/docker/go-connections/nat"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/emptypb"
+)
+
+func TestGRPCSanityNotConfigured(t *testing.T) {
+	ctx, cli, containerID := setup(t, "grpc-sanity"+"-"+uuid.NewString()[:4])
+	t.Cleanup(func() {
+		o, _ := getContainerLogs(ctx, cli, containerID)
+		t.Log(o)
+		cleanupContainer(context.Background(), cli, containerID)
+	})
+	require.NotEmpty(t, containerID)
+	require.Eventually(t, func() bool {
+		o, err := getContainerLogs(ctx, cli, containerID)
+		return strings.Contains(o, "starting") && err == nil
+	}, time.Second*3, time.Millisecond*30)
+
+	ip, err := getContainerIP(containerID)
+	require.NoError(t, err)
+	apiClient, err := newApiClient(ip, "443")
+	require.NoError(t, err)
+
+	apiCtx, cancelFunc := context.WithTimeout(context.Background(), time.Second*1)
+	t.Cleanup(cancelFunc)
+	_, err = apiClient.Configuration(apiCtx, &emptypb.Empty{})
+	require.ErrorContains(t, err, "not configured")
+}
+
+func TestGrpcConfigureNegativeNoEndpoints(t *testing.T) {
+	ctx, cli, containerID := setup(t, "grpc-sanity"+"-"+uuid.NewString()[:4])
+	t.Cleanup(func() {
+		o, _ := getContainerLogs(ctx, cli, containerID)
+		t.Log(o)
+		cleanupContainer(context.Background(), cli, containerID)
+	})
+	require.NotEmpty(t, containerID)
+	require.Eventually(t, func() bool {
+		o, err := getContainerLogs(ctx, cli, containerID)
+		return strings.Contains(o, "starting") && err == nil
+	}, time.Second*3, time.Millisecond*30)
+
+	ip, err := getContainerIP(containerID)
+	require.NoError(t, err)
+	apiClient, err := newApiClient(ip, "443")
+	require.NoError(t, err)
+
+	config := &api.Config{}
+
+	apiCtx, cancelFunc := context.WithTimeout(context.Background(), time.Second*1)
+	t.Cleanup(cancelFunc)
+	_, err = apiClient.Configure(apiCtx, config)
+	require.ErrorContains(t, err, "no endpoints provided")
+}
+
+func TestGrpcConfigureNegativeEndpoints(t *testing.T) {
+	ctx, cli, containerID := setup(t, "grpc-sanity"+"-"+uuid.NewString()[:4])
+	t.Cleanup(func() {
+		o, _ := getContainerLogs(ctx, cli, containerID)
+		t.Log(o)
+		cleanupContainer(context.Background(), cli, containerID)
+	})
+	require.NotEmpty(t, containerID)
+	require.Eventually(t, func() bool {
+		o, err := getContainerLogs(ctx, cli, containerID)
+		return strings.Contains(o, "starting") && err == nil
+	}, time.Second*3, time.Millisecond*30)
+
+	ip, err := getContainerIP(containerID)
+	require.NoError(t, err)
+	apiClient, err := newApiClient(ip, "443")
+	require.NoError(t, err)
+
+	endpoints := []*api.Server{{Address: "localhost"}}
+	config := &api.Config{Endpoints: endpoints}
+
+	apiCtx, cancelFunc := context.WithTimeout(context.Background(), time.Second*1)
+	t.Cleanup(cancelFunc)
+	_, err = apiClient.Configure(apiCtx, config)
+	require.ErrorContains(t, err, "failed to parse server url")
+}
+
+func TestGrpcConfigureEndpoints(t *testing.T) {
+	ctx, cli, containerID := setup(t, "grpc-sanity"+"-"+uuid.NewString()[:4])
+	t.Cleanup(func() {
+		o, _ := getContainerLogs(ctx, cli, containerID)
+		t.Log(o)
+		cleanupContainer(context.Background(), cli, containerID)
+	})
+	require.NotEmpty(t, containerID)
+	require.Eventually(t, func() bool {
+		o, err := getContainerLogs(ctx, cli, containerID)
+		return strings.Contains(o, "starting") && err == nil
+	}, time.Second*3, time.Millisecond*30)
+
+	ip, err := getContainerIP(containerID)
+	require.NoError(t, err)
+	apiClient, err := newApiClient(ip, "443")
+	require.NoError(t, err)
+
+	// setting this endpoint so the slb itself will be an endpoint asm this address refers to all of its nics
+	endpoints := []*api.Server{{Address: "0.0.0.0"}}
+	config := &api.Config{Endpoints: endpoints}
+
+	apiCtx, cancelFunc := context.WithTimeout(context.Background(), time.Second*1)
+	t.Cleanup(cancelFunc)
+	_, err = apiClient.Configure(apiCtx, config)
+	require.NoError(t, err)
+}
+
+func TestGrpcConfigureRunStopNoLoad(t *testing.T) {
+	ctx, cli, containerID := setup(t, "grpc-sanity"+"-"+uuid.NewString()[:4])
+	t.Cleanup(func() {
+		o, _ := getContainerLogs(ctx, cli, containerID)
+		t.Log(o)
+		cleanupContainer(context.Background(), cli, containerID)
+	})
+	require.NotEmpty(t, containerID)
+	require.Eventually(t, func() bool {
+		o, err := getContainerLogs(ctx, cli, containerID)
+		return strings.Contains(o, "starting") && err == nil
+	}, time.Second*3, time.Millisecond*30)
+
+	ip, err := getContainerIP(containerID)
+	require.NoError(t, err)
+	apiClient, err := newApiClient(ip, "443")
+	require.NoError(t, err)
+	endpoints := []*api.Server{{Address: "0.0.0.0"}}
+	config := &api.Config{Endpoints: endpoints}
+
+	apiCtx, cancelFunc := context.WithTimeout(context.Background(), time.Second*1)
+	t.Cleanup(cancelFunc)
+	_, err = apiClient.Configure(apiCtx, config)
+	require.NoError(t, err)
+
+	apiCtx, cancelFunc = context.WithTimeout(context.Background(), time.Second*1)
+	t.Cleanup(cancelFunc)
+	_, err = apiClient.Run(apiCtx, &emptypb.Empty{})
+	require.NoError(t, err)
+
+	apiCtx, cancelFunc = context.WithTimeout(context.Background(), time.Second*1)
+	t.Cleanup(cancelFunc)
+	_, err = apiClient.Stop(apiCtx, &emptypb.Empty{})
+	require.NoError(t, err)
+}
+
+func setup(t *testing.T, name string) (context.Context, *client.Client, string) {
+	ctx := context.Background()
+
+	cli, err := createDockerClient()
+	require.NoError(t, err)
+
+	imageTags := []string{slbImageRepo + imgVersion}
+	config := &container.Config{
+		Image: imageTags[0],
+		ExposedPorts: nat.PortSet{
+			"443":  struct{}{},
+			"5001": struct{}{},
+		},
+	}
+	containerID, err := createAndStartContainer(ctx, cli, config, strings.ToLower(t.Name())+"-"+strings.ToLower(name))
+	require.NoError(t, err)
+
+	return ctx, cli, containerID
+}
