@@ -18,7 +18,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-const DefaultApiPort = ":443"
+const DefaultApiPort = "443"
 
 var ErrNotConfigured = fmt.Errorf("slb not configured correctly")
 
@@ -147,7 +147,7 @@ func NewGrpcServer() *grpc.Server {
 }
 
 func (a *ApiServer) Start() {
-	apiAddress := "" + a.Port
+	apiAddress := "" + ":" + a.Port
 	grpCListener, err := net.Listen("tcp", apiAddress)
 	if err != nil {
 		slog.Error("SLB api service failed to listen at " + apiAddress)

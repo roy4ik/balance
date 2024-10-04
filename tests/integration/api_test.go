@@ -19,6 +19,10 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
+const (
+	backendListenPort = "8080"
+)
+
 func TestGRPCSanityNotConfigured(t *testing.T) {
 	ctx, cli, containerID := setup(t, "grpc-sanity"+"-"+uuid.NewString()[:4])
 	t.Cleanup(func() {
@@ -34,7 +38,7 @@ func TestGRPCSanityNotConfigured(t *testing.T) {
 
 	ip, err := getContainerIP(containerID)
 	require.NoError(t, err)
-	apiClient, err := newApiClient(ip, "443")
+	apiClient, err := newApiClient(ip, HostPort)
 	require.NoError(t, err)
 
 	apiCtx, cancelFunc := context.WithTimeout(context.Background(), time.Second*1)
@@ -58,7 +62,7 @@ func TestGrpcConfigureNegativeNoEndpoints(t *testing.T) {
 
 	ip, err := getContainerIP(containerID)
 	require.NoError(t, err)
-	apiClient, err := newApiClient(ip, "443")
+	apiClient, err := newApiClient(ip, HostPort)
 	require.NoError(t, err)
 
 	config := &api.Config{}
@@ -84,7 +88,7 @@ func TestGrpcConfigureNegativeEndpoints(t *testing.T) {
 
 	ip, err := getContainerIP(containerID)
 	require.NoError(t, err)
-	apiClient, err := newApiClient(ip, "443")
+	apiClient, err := newApiClient(ip, HostPort)
 	require.NoError(t, err)
 
 	endpoints := []*api.Server{{Address: " ="}}
@@ -111,7 +115,7 @@ func TestGrpcConfigureEndpoints(t *testing.T) {
 
 	ip, err := getContainerIP(containerID)
 	require.NoError(t, err)
-	apiClient, err := newApiClient(ip, "443")
+	apiClient, err := newApiClient(ip, HostPort)
 	require.NoError(t, err)
 
 	// setting this endpoint so the slb itself will be an endpoint asm this address refers to all of its nics
@@ -139,7 +143,7 @@ func TestGrpcConfigureRunStopNoLoad(t *testing.T) {
 
 	ip, err := getContainerIP(containerID)
 	require.NoError(t, err)
-	apiClient, err := newApiClient(ip, "443")
+	apiClient, err := newApiClient(ip, HostPort)
 	require.NoError(t, err)
 	endpoints := []*api.Server{{Address: "0.0.0.0"}}
 	config := &api.Config{Endpoints: endpoints}
@@ -170,8 +174,8 @@ func setup(t *testing.T, name string) (context.Context, *client.Client, string) 
 	config := &container.Config{
 		Image: imageTags[0],
 		ExposedPorts: nat.PortSet{
-			"443":  struct{}{},
-			"5001": struct{}{},
+			nat.Port(HostPort): struct{}{},
+			backendListenPort:  struct{}{},
 		},
 	}
 	containerID, err := createAndStartContainer(ctx, cli, config, strings.ToLower(t.Name())+"-"+strings.ToLower(name))
