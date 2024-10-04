@@ -80,7 +80,7 @@ func New(config Config, selector Selector) (*Slb, error) {
 func (s *Slb) Run() error {
 	defer s.server.Close()
 
-	slog.Info("SLB started at: " + s.server.Addr + ":" + s.cfg.Postfix())
+	slog.Info("SLB started at: " + s.server.Addr + s.cfg.Postfix())
 
 	err := s.server.ListenAndServe()
 	if err != nil {
