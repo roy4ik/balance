@@ -2,15 +2,16 @@ package slb
 
 import (
 	"fmt"
+	"net"
 	"net/http"
-	"net/netip"
 	"net/url"
 )
 
 const (
 	DefaultListenPort    = "80"
 	DefaultHandlePostfix = "/"
-	DefaultListenAddress = "localhost"
+	DefaultListenAddress = "0.0.0.0"
+	DefaultScheme        = "http://"
 )
 
 var (
@@ -33,20 +34,13 @@ type Config struct {
 // Returns the full address with port.
 // If no listenPort or ListenAdress are provided in the configuration,
 // it will use default values "localhost:80"
-func (c *Config) Address() (*url.URL, error) {
-	listenPort := c.ListenPort
-	if c.ListenPort == "" {
-		listenPort = DefaultListenPort
-	}
-	listenAddress := c.ListenAddress
+func (c *Config) Address() string {
+	addr := c.ListenAddress
 	if c.ListenAddress == "" {
-		listenAddress = DefaultListenAddress
+		addr = DefaultListenAddress
 	}
-	url, err := url.Parse(listenAddress + ":" + listenPort)
-	if err != nil {
-		return nil, ErrFailedToParseServerUrl(err)
-	}
-	return url, nil
+	addr = addr + ":" + resolvePort(c.ListenPort)
+	return addr
 }
 
 // Returns the HandlePostix or default "/" if none was provided
@@ -63,9 +57,12 @@ func (c *Config) Validate() error {
 		return ErrConfigNoEnpoints()
 	}
 	for _, server := range c.Endpoints {
-		if _, err := parseEndpointUrl(server); err != nil {
+		if _, err := resolveAddress(server.Addr, c.ListenPort); err != nil {
 			return err
 		}
+	}
+	if _, err := resolveAddress(c.ListenAddress, c.ListenPort); err != nil {
+		return err
 	}
 	return nil
 }
@@ -74,14 +71,24 @@ func (c *Config) hasEndpoints() bool {
 	return 0 < len(c.Endpoints)
 }
 
-func parseEndpointUrl(server *http.Server) (*url.URL, error) {
-	a, err := netip.ParseAddr(server.Addr)
+func resolveAddress(addr string, listenPort string) (*url.URL, error) {
+	// Resolve the TCP address
+	tcpAddr, err := net.ResolveTCPAddr("tcp", addr+":"+resolvePort(listenPort))
+	if err != nil {
+		return nil, ErrFailedToParseServerUrl(fmt.Errorf("failed to resolve address: %s", err))
+	}
+
+	parsedURL, err := url.Parse(DefaultScheme + tcpAddr.IP.String() + ":" + resolvePort(listenPort))
 	if err != nil {
 		return nil, ErrFailedToParseServerUrl(err)
 	}
-	url, err := url.Parse(a.String())
-	if err != nil {
-		return nil, ErrFailedToParseServerUrl(err)
+	// Return the parsed URL if everything is successful
+	return parsedURL, nil
+}
+
+func resolvePort(listenPort string) string {
+	if listenPort == "" {
+		listenPort = DefaultListenPort
 	}
-	return url, nil
+	return listenPort
 }
