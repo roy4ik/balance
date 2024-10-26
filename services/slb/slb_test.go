@@ -51,7 +51,7 @@ func (s slbTest) Run() {
 	s.testFunc(s.t)
 }
 
-const badParseString = " ="
+const badParseString = "Http:// ="
 
 func TestSLB(t *testing.T) {
 	scenarios := []*slbTest{
@@ -138,8 +138,8 @@ func TestSLB(t *testing.T) {
 				// validate response
 				body, err := io.ReadAll(resp.Body)
 				require.NoError(t, err)
-				require.Equal(t, string(body), expectedRespBody)
-				require.Equal(t, resp.StatusCode, expectedRespStatus)
+				require.Equal(t, expectedRespBody, string(body))
+				require.Equal(t, expectedRespStatus, resp.StatusCode)
 			},
 		},
 	}
