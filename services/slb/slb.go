@@ -45,11 +45,12 @@ func New(config Config, selector Selector) (*Slb, error) {
 	}
 	s.selector = selector
 
-	setServerProxy := func(server *http.Server) error {
-		url, err := parseEndpointUrl(server)
+	setServerProxy := func(server *http.Server, listenPort string) error {
+		url, err := resolveAddress(server.Addr, listenPort)
 		if err != nil {
-			return (err)
+			return err
 		}
+		server.Addr = url.String()
 
 		proxyHandler := httputil.NewSingleHostReverseProxy(url)
 		server.Handler = proxyHandler
@@ -60,18 +61,14 @@ func New(config Config, selector Selector) (*Slb, error) {
 		if err := s.selector.Add(server); err != nil {
 			return nil, err
 		}
-		if err := setServerProxy(server); err != nil {
+		if err := setServerProxy(server, config.ListenPort); err != nil {
 			return nil, ErrFailedSetProxy(err)
 		}
 	}
 
 	s.serveMux = http.NewServeMux()
 	s.serveMux.Handle(s.cfg.Postfix(), s)
-	url, err := s.cfg.Address()
-	if err != nil {
-		return nil, err
-	}
-	s.server = &http.Server{Addr: url.String(), Handler: s.serveMux}
+	s.server = &http.Server{Addr: s.cfg.Address(), Handler: s.serveMux}
 	return s, nil
 }
 
