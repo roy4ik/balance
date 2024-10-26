@@ -18,6 +18,7 @@ func New() *RoundRobin {
 }
 
 func (r *RoundRobin) Select() (*http.Server, error) {
+
 	endpoints, err := r.EndPoints()
 	if err != nil {
 		return nil, err
@@ -25,10 +26,17 @@ func (r *RoundRobin) Select() (*http.Server, error) {
 	if len(endpoints) <= 0 {
 		return nil, fmt.Errorf("selector has no endpoints to select")
 	}
-	if r.currIdx == len(endpoints)-1 {
-		r.currIdx = 0
-	}
-	r.currIdx++
+
+	// manage index within defer to avoid index change at access
+	defer func([]*http.Server) {
+
+		if r.currIdx >= len(r.endpoints)-1 {
+			r.currIdx = 0 // reset index
+		} else {
+			r.currIdx++
+		}
+	}(endpoints)
+
 	return endpoints[r.currIdx], nil
 }
 
