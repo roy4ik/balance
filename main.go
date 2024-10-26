@@ -78,8 +78,8 @@ func (b *balanceServer) Configure(ctx context.Context, config *api.Config) (*emp
 	}
 
 	switch config.Strategy {
-	case api.SelectorStrategy_SELECTOR_STRATEGY_ROUND_ROBIN:
-		b.selector = roundRobin.New()
+	// case api.SelectorStrategy_SELECTOR_STRATEGY_ROUND_ROBIN:
+	// 	b.selector = roundRobin.New()
 	default:
 		b.selector = roundRobin.New()
 	}
