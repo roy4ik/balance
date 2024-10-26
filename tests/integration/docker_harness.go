@@ -30,7 +30,7 @@ func createDockerClient() (*client.Client, error) {
 	return client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 }
 
-var HostPort = "433"
+var HostPort = "443"
 
 func createAndStartContainer(ctx context.Context, cli *client.Client, config *container.Config, containerName string) (string, error) {
 	// Create host configuration with port mapping
@@ -59,7 +59,7 @@ func createAndStartContainer(ctx context.Context, cli *client.Client, config *co
 
 func cleanupContainer(ctx context.Context, cli *client.Client, containerID string) error {
 	if err := cli.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{Force: true}); err != nil {
-		slog.Error("Error removing Docker container: %v\n", err)
+		slog.Error(fmt.Sprintf("error removing Docker container: %v", err))
 		return err
 	}
 	return nil
