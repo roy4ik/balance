@@ -24,7 +24,7 @@ func (r *RRTest) Run() {
 	}
 	var err error
 	var selected *http.Server
-	for nSelection := 0; nSelection < r.nSelections; nSelection++ {
+	for nSelection := 1; nSelection <= r.nSelections; nSelection++ {
 		selected, err = selector.Select()
 		require.NoError(r.t, err)
 	}
@@ -36,7 +36,7 @@ func (r *RRTest) Run() {
 func TestRoundRobin(t *testing.T) {
 	scenarios := []*RRTest{}
 	servers := mock.GenerateServers(3)
-	scenarioWithinRange := &RRTest{"test selection within endpoint range", t, servers, 1, servers[1]}
+	scenarioWithinRange := &RRTest{"test selection within endpoint range", t, servers, 1, servers[0]}
 	scenarioOutSideRange := &RRTest{"selection outside of endpoint range", t, servers, 5, servers[1]}
 
 	scenarios = append(scenarios, scenarioWithinRange, scenarioOutSideRange)
