@@ -12,6 +12,8 @@ import (
 	"log/slog"
 	"time"
 
+	backendServer "balance/tests/integration/mock/backend/server"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -40,6 +42,12 @@ func createAndStartContainer(ctx context.Context, cli *client.Client, config *co
 				{
 					HostIP:   "0.0.0.0",
 					HostPort: HostPort,
+				},
+			},
+			"8080/tcp": []nat.PortBinding{
+				{
+					HostIP:   "0.0.0.0",
+					HostPort: backendServer.ListenPort,
 				},
 			},
 		},
