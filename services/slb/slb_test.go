@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -106,13 +105,15 @@ func TestSLB(t *testing.T) {
 				mockServers := mock.GenerateServers(3)
 				// Chose a random but realistic port range
 				listenPort := mock.RandomPort()
-				listenAddress := &net.IPAddr{IP: []byte("localhost")}
+				listenAddress := "localhost"
 
 				expectedRespBody := "OK"
 				expectedRespStatus := http.StatusOK
-				// initiate SLB
+
+				// initiate SLB with localhost as listen address as this is a local test
 				slb, err := New(
-					Config{Endpoints: mockServers, ListenPort: listenPort}, &SelectorMock{
+					Config{Endpoints: mockServers, ListenPort: listenPort, ListenAddress: listenAddress},
+					&SelectorMock{
 						expectedResponse: http.Response{
 							StatusCode: expectedRespStatus,
 							Body:       io.NopCloser(strings.NewReader(expectedRespBody))},
@@ -128,7 +129,7 @@ func TestSLB(t *testing.T) {
 				}(t, slb)
 
 				// send request to SLB
-				targetUrl := "http://" + string(listenAddress.IP) + ":" + listenPort + "/food"
+				targetUrl := "http://" + string(listenAddress) + ":" + listenPort + "/food"
 				slog.Info("sending request to " + targetUrl)
 				resp, err := http.Get(targetUrl)
 				require.NoError(t, err)
