@@ -87,7 +87,7 @@ func TestGrpcConfigureNegativeEndpoints(t *testing.T) {
 	apiClient, err := newApiClient(ip, "443")
 	require.NoError(t, err)
 
-	endpoints := []*api.Server{{Address: "localhost"}}
+	endpoints := []*api.Server{{Address: " ="}}
 	config := &api.Config{Endpoints: endpoints}
 
 	apiCtx, cancelFunc := context.WithTimeout(context.Background(), time.Second*1)
