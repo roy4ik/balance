@@ -3,6 +3,7 @@ package main
 import (
 	api "balance/gen"
 	"balance/services/slb"
+	randomSelector "balance/services/slb/selectors/random"
 	"balance/services/slb/selectors/roundRobin"
 	"context"
 	"fmt"
@@ -44,8 +45,10 @@ func (b *balanceServer) Configuration(ctx context.Context, _ *emptypb.Empty) (*a
 	if strings.Contains(api.SelectorStrategy_SELECTOR_STRATEGY_ROUND_ROBIN.String(), t.Name()) {
 		strategy = api.SelectorStrategy_SELECTOR_STRATEGY_ROUND_ROBIN
 	}
-
-	if strategy == api.SelectorStrategy_SELECTOR_STRATEGY_ROUND_ROBIN {
+	if strings.Contains(api.SelectorStrategy_SELECTOR_STRATEGY_RANDOM.String(), t.Name()) {
+		strategy = api.SelectorStrategy_SELECTOR_STRATEGY_RANDOM
+	}
+	if strategy == api.SelectorStrategy_SELECTOR_STRATEGY_UNSPECIFIED {
 		slog.Warn("No strategy configured")
 	}
 
@@ -78,8 +81,10 @@ func (b *balanceServer) Configure(ctx context.Context, config *api.Config) (*emp
 	}
 
 	switch config.Strategy {
-	// case api.SelectorStrategy_SELECTOR_STRATEGY_ROUND_ROBIN:
-	// 	b.selector = roundRobin.New()
+	case api.SelectorStrategy_SELECTOR_STRATEGY_ROUND_ROBIN:
+		b.selector = roundRobin.New()
+	case api.SelectorStrategy_SELECTOR_STRATEGY_RANDOM:
+		b.selector = randomSelector.New()
 	default:
 		b.selector = roundRobin.New()
 	}
