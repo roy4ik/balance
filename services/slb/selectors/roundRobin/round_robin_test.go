@@ -19,11 +19,12 @@ type RRTest struct {
 
 func (r *RRTest) Run() {
 	selector := New()
+	selected, err := selector.Select()
+	require.Error(r.t, err, "expected no endpoints to select")
 	for _, e := range r.endpoints {
 		require.NoError(r.t, selector.Add(e))
 	}
-	var err error
-	var selected *http.Server
+
 	for nSelection := 1; nSelection <= r.nSelections; nSelection++ {
 		selected, err = selector.Select()
 		require.NoError(r.t, err)
@@ -31,6 +32,11 @@ func (r *RRTest) Run() {
 	if r.toSelect != nil {
 		require.Exactly(r.t, selected, r.toSelect)
 	}
+
+	for _, e := range r.endpoints {
+		require.NoError(r.t, selector.Remove(e))
+	}
+	require.Error(r.t, selector.Remove(selected), "all endoints removed, expected error")
 }
 
 func TestRoundRobin(t *testing.T) {
