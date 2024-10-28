@@ -8,14 +8,9 @@ import (
 	"context"
 	"io"
 	"net/http"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/client"
-	"github.com/docker/go-connections/nat"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
@@ -73,36 +68,4 @@ func TestRoundRobinSanity(t *testing.T) {
 		require.Exactly(t, id, nlbRespID)
 		require.Exactly(t, backendRespId, nlbRespID)
 	}
-}
-
-const (
-	BackEndImgName    = "backend:"
-	BackendImgVersion = "latest"
-)
-
-func setupSlbWithBackends(t *testing.T, numBackends int) (context.Context, *client.Client, string, []string) {
-	// setup slb
-	ctx, cli, containerID := setup(t, "round-robin"+"-"+uuid.NewString()[:4])
-	// setup backends
-	backendContainers := make([]string, 0)
-	for i := 0; i < numBackends; i++ {
-		ctx := context.Background()
-
-		cli, err := createDockerClient()
-		require.NoError(t, err)
-
-		imageTags := []string{BackEndImgName + BackendImgVersion}
-		config := &container.Config{
-			Image: imageTags[0],
-			ExposedPorts: nat.PortSet{
-				"443":             struct{}{},
-				backendListenPort: struct{}{},
-			},
-		}
-		backendContainerID, err := createAndStartContainer(ctx, cli, config, strings.ToLower(t.Name())+"-"+"backend-"+uuid.NewString()[:4])
-		require.NoError(t, err)
-		// required is the shortened id here as the backend provides the full id.
-		backendContainers = append(backendContainers, backendContainerID[:11])
-	}
-	return ctx, cli, containerID, backendContainers
 }

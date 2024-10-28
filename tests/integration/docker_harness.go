@@ -22,8 +22,10 @@ import (
 )
 
 const (
-	imgVersion   = ":latest"
-	slbImageRepo = "balance"
+	imgVersion        = ":latest"
+	slbImageRepo      = "balance"
+	BackendImgVersion = ":latest"
+	BackEndImgName    = "backend"
 )
 
 var buildContextPaths = []string{"../../"}
@@ -32,7 +34,10 @@ func createDockerClient() (*client.Client, error) {
 	return client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 }
 
-var HostPort = "443"
+const (
+	HostPort          = "443"
+	backendListenPort = "8080"
+)
 
 func createAndStartContainer(ctx context.Context, cli *client.Client, config *container.Config, containerName string) (string, error) {
 	// Create host configuration with port mapping

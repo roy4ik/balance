@@ -11,16 +11,9 @@ import (
 
 	api "balance/gen"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/client"
-	"github.com/docker/go-connections/nat"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/emptypb"
-)
-
-const (
-	backendListenPort = "8080"
 )
 
 func TestGRPCSanityNotConfigured(t *testing.T) {
@@ -162,24 +155,4 @@ func TestGrpcConfigureRunStopNoLoad(t *testing.T) {
 	t.Cleanup(cancelFunc)
 	_, err = apiClient.Stop(apiCtx, &emptypb.Empty{})
 	require.NoError(t, err)
-}
-
-func setup(t *testing.T, name string) (context.Context, *client.Client, string) {
-	ctx := context.Background()
-
-	cli, err := createDockerClient()
-	require.NoError(t, err)
-
-	imageTags := []string{slbImageRepo + imgVersion}
-	config := &container.Config{
-		Image: imageTags[0],
-		ExposedPorts: nat.PortSet{
-			nat.Port(HostPort): struct{}{},
-			backendListenPort:  struct{}{},
-		},
-	}
-	containerID, err := createAndStartContainer(ctx, cli, config, strings.ToLower(t.Name())+"-"+strings.ToLower(name))
-	require.NoError(t, err)
-
-	return ctx, cli, containerID
 }
