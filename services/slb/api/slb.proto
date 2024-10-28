@@ -25,6 +25,7 @@ message Server {
 enum SelectorStrategy {
   SELECTOR_STRATEGY_UNSPECIFIED = 0;
   SELECTOR_STRATEGY_ROUND_ROBIN = 1;
+  SELECTOR_STRATEGY_RANDOM = 2;
 }
 
 message Config {
