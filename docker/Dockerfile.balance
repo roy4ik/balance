@@ -5,9 +5,10 @@ COPY --from=builder /app/balance .
 
 # Ensure the binary is executable
 RUN chmod +x balance
+# certs directory: Please note that certificates are not provided and need to be added to the container and the api client.
+RUN mkdir -p /etc/certs
 
 # debug tools
 # RUN apk update && apk add busybox-extras
 
 ENTRYPOINT ["./balance"]
-
