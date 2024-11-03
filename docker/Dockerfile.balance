@@ -1,6 +1,6 @@
-FROM balance-build:latest as builder
+FROM balance-build:latest AS builder
 
-FROM golang:1.22.4-alpine3.20 as service
+FROM golang:1.22.4-alpine3.20 AS service
 COPY --from=builder /app/balance .
 
 # Ensure the binary is executable
