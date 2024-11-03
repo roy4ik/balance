@@ -5,8 +5,7 @@ gen:
     # make slb api 
 	go generate ./...
 
-test-integration:
-	gen
+test-integration: gen
 	go test ./... -tags="integration"
 
 # at this point only clean generated code and the final build dockers
