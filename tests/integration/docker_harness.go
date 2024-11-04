@@ -39,7 +39,7 @@ const (
 	backendListenPort = "8080"
 )
 
-func createAndStartContainer(ctx context.Context, cli *client.Client, config *container.Config, containerName string) (string, error) {
+func createContainer(ctx context.Context, cli *client.Client, config *container.Config, containerName string) (string, error) {
 	// Create host configuration with port mapping
 	hostConfig := &container.HostConfig{
 		PortBindings: nat.PortMap{
@@ -61,13 +61,14 @@ func createAndStartContainer(ctx context.Context, cli *client.Client, config *co
 	if err != nil {
 		return "", fmt.Errorf("error creating Docker container: %v", err)
 	}
+	return resp.ID, nil
+}
 
-	containerID := resp.ID
+func startContainer(cli *client.Client, ctx context.Context, containerID string) error {
 	if err := cli.ContainerStart(ctx, containerID, types.ContainerStartOptions{}); err != nil {
-		return "", fmt.Errorf("error starting Docker container: %v", err)
+		return fmt.Errorf("error starting Docker container: %v", err)
 	}
-
-	return containerID, nil
+	return nil
 }
 
 func cleanupContainer(ctx context.Context, cli *client.Client, containerID string) error {
@@ -75,6 +76,7 @@ func cleanupContainer(ctx context.Context, cli *client.Client, containerID strin
 		slog.Error(fmt.Sprintf("error removing Docker container: %v", err))
 		return err
 	}
+	cli.ContainerWait(ctx, containerID, container.WaitConditionRemoved)
 	return nil
 }
 

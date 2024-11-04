@@ -37,7 +37,7 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-const certsDirLocalPath = "../../gen/certs/"
+const certsDirLocalPath = "../../tmp/certs/"
 const clientCertFileName = "client-cert.pem"
 const clientKeyFileName = "client-key.pem"
 
@@ -83,102 +83,110 @@ func setup(t *testing.T, name string) (context.Context, *client.Client, string) 
 			nat.Port(HostPort): struct{}{},
 			backendListenPort:  struct{}{},
 		},
+		// delay the entry to balance to ensure to have enough time to get the IP of the container
+		// and place certificates and
+		Entrypoint: []string{"/bin/sh", "-c", fmt.Sprintf("while [ ! -f %s ]; do sleep 0.5; done; sleep 0.5; ./balance", apiService.DefaultServiceKeyPath)},
 	}
-	containerID, err := createAndStartContainer(ctx, cli, config, strings.ToLower(t.Name())+"-"+strings.ToLower(name))
+	containerName := strings.ToLower(t.Name()) + "-" + strings.ToLower(name)
+	containerID, err := createContainer(ctx, cli, config, containerName)
 	t.Cleanup(func() {
 		o, _ := getContainerLogs(ctx, cli, containerID)
 		t.Log(o)
+		cli.ContainerStop(ctx, containerID, container.StopOptions{})
 		cleanupContainer(context.Background(), cli, containerID)
 	})
 
-	// Create the CA
-
-	// Generate server and client certificates signed by the CA
-	getLocalIP := func() (net.IP, error) {
-		interfaces, err := net.Interfaces()
-		if err != nil {
-			return nil, err
-		}
-
-		for _, iface := range interfaces {
-			if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
-				continue // Skip down or loopback interfaces
-			}
-
-			addrs, err := iface.Addrs()
-			if err != nil {
-				continue
-			}
-
-			for _, addr := range addrs {
-				ipNet, ok := addr.(*net.IPNet)
-				if ok && !ipNet.IP.IsLoopback() && ipNet.IP.To4() != nil {
-					return ipNet.IP, nil
-				}
-			}
-		}
-		return nil, fmt.Errorf("no valid local IP address found")
-	}
-
-	getOutBoundIP := func() (net.IP, error) {
-		// Create a UDP connection to an external address (Google's public DNS)
-		conn, err := net.Dial("udp", "8.8.8.8:80")
-		if err != nil {
-			return nil, err
-		}
-		defer conn.Close()
-
-		// Get the local address of the connection and extract the IP
-		localAddr := conn.LocalAddr().(*net.UDPAddr)
-		return localAddr.IP, nil
-	}
+	// get local ips
 	outboundIP, err := getOutBoundIP()
-	require.NoError(t, err)
-	ip, err := getContainerIP(containerID)
 	require.NoError(t, err)
 	localIP, err := getLocalIP()
 	require.NoError(t, err)
 
+	// start container to get ip
+	require.NoError(t, startContainer(cli, ctx, containerID))
+
+	var ip string
+	require.Eventually(t, func() bool {
+		ip, _ = getContainerIP(containerID)
+		return ip != ""
+	}, time.Second*10, time.Millisecond*30)
+
+	require.NotEmpty(t, ip)
+	require.NoError(t, err)
+
+	// Stop container, we dont need it running to copy the files
+	require.NoError(t, cli.ContainerStop(ctx, containerID, container.StopOptions{}))
+
+	// Create the CA
+
 	// Both the server and the client must be in the SANs
-	ipAddresses := []net.IP{net.ParseIP(ip), localIP, outboundIP}
+	ipAddresses := []net.IP{localIP, outboundIP, net.ParseIP(ip)}
 	dnsNames := []string{"localhost", "balance"}
 
 	caCert, caKey, caCertPEM, caKeyPEM, err := generateCA("balance", ipAddresses, dnsNames)
 	require.NoError(t, err)
-	certsDirPath, caCertFileName := path.Split(apiService.DefaultCAPath)
-	os.WriteFile(certsDirLocalPath+caCertFileName, caCertPEM, 0644)
-	os.WriteFile(certsDirLocalPath+"ca-key.pem", caKeyPEM, 0600)
 
+	// Generate server and client certificates signed by the CA
 	serverCertPEM, serverKeyPEM, err := generateCertificate(caCert, caKey, "balance", ipAddresses, dnsNames)
 	require.NoError(t, err)
-	clientCertPEM, clientKeyPEM, err := generateCertificate(caCert, caKey, "client", ipAddresses, dnsNames)
+	clientCertPEM, clientKeyPEM, err := generateCertificate(caCert, caKey, "balance", ipAddresses, dnsNames)
 	require.NoError(t, err)
 
-	// Save the certificates to files
+	// Save Certs
+	localTestCertsDir := certsDirLocalPath + name + "/"
+	require.NoError(t, os.MkdirAll(localTestCertsDir, 755))
+	t.Cleanup(func() {
+		os.RemoveAll(localTestCertsDir)
+	})
+	_, caCertFileName := path.Split(apiService.DefaultCAPath)
 	_, serverCertFileName := path.Split(apiService.DefaultServiceCertPath)
-	localServerCertPath := certsDirLocalPath + serverCertFileName
-	require.NoError(t, os.WriteFile(localServerCertPath, serverCertPEM, 0644))
 	_, serverKeyFileName := path.Split(apiService.DefaultServiceKeyPath)
-	require.NoError(t, os.WriteFile(certsDirLocalPath+serverKeyFileName, serverKeyPEM, 0600))
-	localClientCertPath := certsDirLocalPath + clientCertFileName
-	require.NoError(t, os.WriteFile(localClientCertPath, clientCertPEM, 0644))
-	require.NoError(t, os.WriteFile(certsDirLocalPath+clientKeyFileName, clientKeyPEM, 0600))
+	caKeyFileName := "ca-key.pem"
 
-	// Copy certificates to Docker containers
-	serverCert, err := os.Open(localServerCertPath)
-	defer serverCert.Close()
-	require.NoError(t, err)
-	require.NoError(t, copyToDocker(cli, ctx, containerID, apiService.DefaultServiceCertPath, serverCert))
+	type certFile struct {
+		localpath     string
+		content       []byte
+		mode          os.FileMode
+		containerPath string
+	}
+	files := []certFile{
+		// ca
+		{localTestCertsDir + caCertFileName, caCertPEM, 0644, apiService.DefaultCAPath},
+		{localTestCertsDir + caKeyFileName, caKeyPEM, 0600, ""},
+		// server
+		{localTestCertsDir + serverCertFileName, serverCertPEM, 0644, apiService.DefaultServiceCertPath},
+		{localTestCertsDir + serverKeyFileName, serverKeyPEM, 0600, apiService.DefaultServiceKeyPath},
+		// client
+		{localTestCertsDir + clientCertFileName, clientCertPEM, 0644, ""},
+		{localTestCertsDir + clientKeyFileName, clientKeyPEM, 0600, ""},
+	}
+	for _, file := range files {
+		require.NoError(t, os.WriteFile(file.localpath, file.content, file.mode))
+		// }
 
-	clientCert, err := os.Open(localClientCertPath)
-	require.NoError(t, err)
-	defer clientCert.Close()
-	require.NoError(t, copyToDocker(cli, ctx, containerID, certsDirPath+clientCertFileName, clientCert))
+		// pathMapping := map[string]string{
+		// 	localTestCertsDir + caCertFileName: apiService.DefaultCAPath,
+		// 	localServerCertPath:                apiService.DefaultServiceCertPath,
+		// 	localServerKeyPath:                 apiService.DefaultServiceKeyPath,
+		// }
 
-	caCertFile, err := os.Open(certsDirLocalPath + caCertFileName)
-	require.NoError(t, err)
-	defer caCertFile.Close()
-	require.NoError(t, copyToDocker(cli, ctx, containerID, certsDirPath+caCertFileName, caCertFile))
+		// for localPath, containerPath := range pathMapping {
+		// 	// Copy certificates to Docker containers
+		if file.containerPath != "" {
+			certFile, err := os.Open(file.localpath)
+			require.NoError(t, err)
+			defer certFile.Close()
+			require.NoError(t, copyToDocker(cli, ctx, containerID, file.containerPath, certFile))
+		}
+	}
+
+	require.NoError(t, startContainer(cli, ctx, containerID))
+
+	require.Eventually(t, func() bool {
+		o, err := getContainerLogs(ctx, cli, containerID)
+		return strings.Contains(o, "starting") && err == nil
+	}, time.Second*10, time.Millisecond*30)
+
 	return ctx, cli, containerID
 }
 
@@ -201,10 +209,11 @@ func setupSlbWithBackends(t *testing.T, numBackends int) (context.Context, *clie
 				backendListenPort: struct{}{},
 			},
 		}
-		backendContainerID, err := createAndStartContainer(ctx, cli, config, strings.ToLower(t.Name())+"-"+"backend-"+uuid.NewString()[:4])
+		backendContainerID, err := createContainer(ctx, cli, config, strings.ToLower(t.Name())+"-"+"backend-"+uuid.NewString()[:4])
 		require.NoError(t, err)
 		// required is the shortened id here as the backend provides the full id.
 		backendContainers = append(backendContainers, backendContainerID[:11])
+		require.NoError(t, startContainer(cli, ctx, backendContainerID))
 	}
 	return ctx, cli, containerID, backendContainers
 }
@@ -331,4 +340,43 @@ func copyToDocker(cli *client.Client, ctx context.Context, containerID string, d
 		return err
 	}
 	return cli.CopyToContainer(ctx, containerID, dirPath, tar, types.CopyToContainerOptions{})
+}
+
+func getLocalIP() (net.IP, error) {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, iface := range interfaces {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue // Skip down or loopback interfaces
+		}
+
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+
+		for _, addr := range addrs {
+			ipNet, ok := addr.(*net.IPNet)
+			if ok && !ipNet.IP.IsLoopback() && ipNet.IP.To4() != nil {
+				return ipNet.IP, nil
+			}
+		}
+	}
+	return nil, fmt.Errorf("no valid local IP address found")
+}
+
+func getOutBoundIP() (net.IP, error) {
+	// Create a UDP connection to an external address (Google's public DNS)
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	// Get the local address of the connection and extract the IP
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	return localAddr.IP, nil
 }

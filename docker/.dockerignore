@@ -1,2 +1,4 @@
 **.git/
 **.tar.gz
+../tests/
+../tmp/
