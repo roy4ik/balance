@@ -15,8 +15,10 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
+const testNamePrefix = "grpc-sanity"
+
 func TestGRPCSanityNotConfigured(t *testing.T) {
-	_, _, containerID := setup(t, "grpc-sanity"+"-"+uuid.NewString()[:4])
+	_, _, containerID := setup(t, testNamePrefix+"-"+uuid.NewString()[:4])
 	require.NotEmpty(t, containerID)
 
 	ip, err := getContainerIP(containerID)
@@ -31,7 +33,7 @@ func TestGRPCSanityNotConfigured(t *testing.T) {
 }
 
 func TestGrpcConfigureNegativeNoEndpoints(t *testing.T) {
-	_, _, containerID := setup(t, "grpc-sanity"+"-"+uuid.NewString()[:4])
+	_, _, containerID := setup(t, testNamePrefix+"-"+uuid.NewString()[:4])
 	require.NotEmpty(t, containerID)
 
 	ip, err := getContainerIP(containerID)
@@ -48,7 +50,7 @@ func TestGrpcConfigureNegativeNoEndpoints(t *testing.T) {
 }
 
 func TestGrpcConfigureNegativeEndpoints(t *testing.T) {
-	_, _, containerID := setup(t, "grpc-sanity"+"-"+uuid.NewString()[:4])
+	_, _, containerID := setup(t, testNamePrefix+"-"+uuid.NewString()[:4])
 	require.NotEmpty(t, containerID)
 
 	ip, err := getContainerIP(containerID)
@@ -66,7 +68,7 @@ func TestGrpcConfigureNegativeEndpoints(t *testing.T) {
 }
 
 func TestGrpcConfigureEndpoints(t *testing.T) {
-	_, _, containerID := setup(t, "grpc-sanity"+"-"+uuid.NewString()[:4])
+	_, _, containerID := setup(t, testNamePrefix+"-"+uuid.NewString()[:4])
 	require.NotEmpty(t, containerID)
 
 	ip, err := getContainerIP(containerID)
@@ -85,7 +87,7 @@ func TestGrpcConfigureEndpoints(t *testing.T) {
 }
 
 func TestGrpcConfigureRunStopNoLoad(t *testing.T) {
-	_, _, containerID := setup(t, "grpc-sanity"+"-"+uuid.NewString()[:4])
+	_, _, containerID := setup(t, testNamePrefix+"-"+uuid.NewString()[:4])
 	require.NotEmpty(t, containerID)
 
 	ip, err := getContainerIP(containerID)
