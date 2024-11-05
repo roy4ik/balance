@@ -2,7 +2,7 @@ FROM golang:1.22.4-alpine3.20
 
 WORKDIR /app
 
-RUN apk update && apk add protobuf-dev
+RUN apk update && apk add --no-cache protobuf-dev
 RUN go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 RUN go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 
