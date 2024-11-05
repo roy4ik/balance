@@ -4,6 +4,7 @@
 package integration
 
 import (
+	apiService "balance/services/api_service"
 	"context"
 	"os"
 	"os/exec"
@@ -45,8 +46,8 @@ func TestSLBDockerCreateFailedBadImageName(t *testing.T) {
 	config := &container.Config{
 		Image: imageTags[0],
 		ExposedPorts: nat.PortSet{
-			"443":  struct{}{},
-			"5001": struct{}{},
+			apiService.DefaultApiPort: struct{}{},
+			"5001":                    struct{}{},
 		},
 	}
 	id, err := createAndStartContainer(context.Background(), cli, config, strings.ToLower(t.Name()))

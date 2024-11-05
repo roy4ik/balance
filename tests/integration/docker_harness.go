@@ -12,6 +12,7 @@ import (
 	"log/slog"
 	"time"
 
+	apiService "balance/services/api_service"
 	backendServer "balance/tests/integration/mock/backend/server"
 
 	"github.com/docker/docker/api/types"
@@ -35,7 +36,7 @@ func createDockerClient() (*client.Client, error) {
 }
 
 const (
-	HostPort          = "443"
+	HostPort          = apiService.DefaultApiPort
 	backendListenPort = "8080"
 )
 
@@ -43,7 +44,7 @@ func createAndStartContainer(ctx context.Context, cli *client.Client, config *co
 	// Create host configuration with port mapping
 	hostConfig := &container.HostConfig{
 		PortBindings: nat.PortMap{
-			"443/tcp": []nat.PortBinding{
+			apiService.DefaultApiPort + "/tcp": []nat.PortBinding{
 				{
 					HostIP:   "0.0.0.0",
 					HostPort: HostPort,
