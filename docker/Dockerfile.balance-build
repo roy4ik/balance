@@ -3,6 +3,8 @@ FROM go-build:latest as builder
 COPY . .
 RUN go mod download
 RUN go generate ./services/...
-RUN go test ./...
+# save results to test_results which forces caching of the test results. 
+# this avoids testing again on each build without changes
+RUN go test -coverprofile=coverage.out ./... && go tool cover -html=coverage.out -o coverage.html
 RUN go build -o ./balance
 
