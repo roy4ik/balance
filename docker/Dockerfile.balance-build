@@ -1,4 +1,4 @@
-FROM go-build:latest as builder
+FROM go-build:latest AS builder
 
 COPY . .
 RUN go mod download
