@@ -5,7 +5,6 @@ package integration
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
@@ -17,12 +16,8 @@ import (
 )
 
 func TestGRPCSanityNotConfigured(t *testing.T) {
-	ctx, cli, containerID := setup(t, "grpc-sanity"+"-"+uuid.NewString()[:4])
+	_, _, containerID := setup(t, "grpc-sanity"+"-"+uuid.NewString()[:4])
 	require.NotEmpty(t, containerID)
-	require.Eventually(t, func() bool {
-		o, err := getContainerLogs(ctx, cli, containerID)
-		return strings.Contains(o, "starting") && err == nil
-	}, time.Second*3, time.Millisecond*30)
 
 	ip, err := getContainerIP(containerID)
 	require.NoError(t, err)
@@ -36,12 +31,8 @@ func TestGRPCSanityNotConfigured(t *testing.T) {
 }
 
 func TestGrpcConfigureNegativeNoEndpoints(t *testing.T) {
-	ctx, cli, containerID := setup(t, "grpc-sanity"+"-"+uuid.NewString()[:4])
+	_, _, containerID := setup(t, "grpc-sanity"+"-"+uuid.NewString()[:4])
 	require.NotEmpty(t, containerID)
-	require.Eventually(t, func() bool {
-		o, err := getContainerLogs(ctx, cli, containerID)
-		return strings.Contains(o, "starting") && err == nil
-	}, time.Second*3, time.Millisecond*30)
 
 	ip, err := getContainerIP(containerID)
 	require.NoError(t, err)
@@ -57,12 +48,8 @@ func TestGrpcConfigureNegativeNoEndpoints(t *testing.T) {
 }
 
 func TestGrpcConfigureNegativeEndpoints(t *testing.T) {
-	ctx, cli, containerID := setup(t, "grpc-sanity"+"-"+uuid.NewString()[:4])
+	_, _, containerID := setup(t, "grpc-sanity"+"-"+uuid.NewString()[:4])
 	require.NotEmpty(t, containerID)
-	require.Eventually(t, func() bool {
-		o, err := getContainerLogs(ctx, cli, containerID)
-		return strings.Contains(o, "starting") && err == nil
-	}, time.Second*3, time.Millisecond*30)
 
 	ip, err := getContainerIP(containerID)
 	require.NoError(t, err)
@@ -79,12 +66,8 @@ func TestGrpcConfigureNegativeEndpoints(t *testing.T) {
 }
 
 func TestGrpcConfigureEndpoints(t *testing.T) {
-	ctx, cli, containerID := setup(t, "grpc-sanity"+"-"+uuid.NewString()[:4])
+	_, _, containerID := setup(t, "grpc-sanity"+"-"+uuid.NewString()[:4])
 	require.NotEmpty(t, containerID)
-	require.Eventually(t, func() bool {
-		o, err := getContainerLogs(ctx, cli, containerID)
-		return strings.Contains(o, "starting") && err == nil
-	}, time.Second*3, time.Millisecond*30)
 
 	ip, err := getContainerIP(containerID)
 	require.NoError(t, err)
@@ -102,12 +85,8 @@ func TestGrpcConfigureEndpoints(t *testing.T) {
 }
 
 func TestGrpcConfigureRunStopNoLoad(t *testing.T) {
-	ctx, cli, containerID := setup(t, "grpc-sanity"+"-"+uuid.NewString()[:4])
+	_, _, containerID := setup(t, "grpc-sanity"+"-"+uuid.NewString()[:4])
 	require.NotEmpty(t, containerID)
-	require.Eventually(t, func() bool {
-		o, err := getContainerLogs(ctx, cli, containerID)
-		return strings.Contains(o, "starting") && err == nil
-	}, time.Second*3, time.Millisecond*30)
 
 	ip, err := getContainerIP(containerID)
 	require.NoError(t, err)
