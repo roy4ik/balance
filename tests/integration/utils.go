@@ -38,7 +38,8 @@ func setup(t *testing.T, name string) (context.Context, *client.Client, string) 
 			backendListenPort:  struct{}{},
 		},
 	}
-	containerID, err := createAndStartContainer(ctx, cli, config, strings.ToLower(t.Name())+"-"+strings.ToLower(name))
+	containerName := strings.ToLower(t.Name()) + "-" + strings.ToLower(name)
+	containerID, err := createContainer(ctx, cli, config, containerName)
 	t.Cleanup(func() {
 		o, _ := getContainerLogs(ctx, cli, containerID)
 		t.Log(o)
@@ -46,6 +47,7 @@ func setup(t *testing.T, name string) (context.Context, *client.Client, string) 
 		cleanupContainer(context.Background(), cli, containerID)
 	})
 	require.NoError(t, err)
+	require.NoError(t, startContainer(cli, ctx, containerID))
 
 	return ctx, cli, containerID
 }
@@ -69,7 +71,7 @@ func setupSlbWithBackends(t *testing.T, numBackends int) (context.Context, *clie
 				backendListenPort:         struct{}{},
 			},
 		}
-		backendContainerID, err := createAndStartContainer(ctx, cli, config, strings.ToLower(t.Name())+"-"+"backend-"+uuid.NewString()[:4])
+		backendContainerID, err := createContainer(ctx, cli, config, strings.ToLower(t.Name())+"-"+"backend-"+uuid.NewString()[:4])
 		t.Cleanup(func() {
 			stopContainer(context.Background(), cli, backendContainerID)
 			cleanupContainer(context.Background(), cli, backendContainerID)
@@ -77,6 +79,7 @@ func setupSlbWithBackends(t *testing.T, numBackends int) (context.Context, *clie
 		require.NoError(t, err)
 		// required is the shortened id here as the backend provides the full id.
 		backendContainers = append(backendContainers, backendContainerID[:11])
+		require.NoError(t, startContainer(cli, ctx, backendContainerID))
 	}
 	return ctx, cli, containerID, backendContainers
 }
