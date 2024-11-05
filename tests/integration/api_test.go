@@ -18,11 +18,6 @@ import (
 
 func TestGRPCSanityNotConfigured(t *testing.T) {
 	ctx, cli, containerID := setup(t, "grpc-sanity"+"-"+uuid.NewString()[:4])
-	t.Cleanup(func() {
-		o, _ := getContainerLogs(ctx, cli, containerID)
-		t.Log(o)
-		cleanupContainer(context.Background(), cli, containerID)
-	})
 	require.NotEmpty(t, containerID)
 	require.Eventually(t, func() bool {
 		o, err := getContainerLogs(ctx, cli, containerID)
@@ -42,11 +37,6 @@ func TestGRPCSanityNotConfigured(t *testing.T) {
 
 func TestGrpcConfigureNegativeNoEndpoints(t *testing.T) {
 	ctx, cli, containerID := setup(t, "grpc-sanity"+"-"+uuid.NewString()[:4])
-	t.Cleanup(func() {
-		o, _ := getContainerLogs(ctx, cli, containerID)
-		t.Log(o)
-		cleanupContainer(context.Background(), cli, containerID)
-	})
 	require.NotEmpty(t, containerID)
 	require.Eventually(t, func() bool {
 		o, err := getContainerLogs(ctx, cli, containerID)
@@ -68,11 +58,6 @@ func TestGrpcConfigureNegativeNoEndpoints(t *testing.T) {
 
 func TestGrpcConfigureNegativeEndpoints(t *testing.T) {
 	ctx, cli, containerID := setup(t, "grpc-sanity"+"-"+uuid.NewString()[:4])
-	t.Cleanup(func() {
-		o, _ := getContainerLogs(ctx, cli, containerID)
-		t.Log(o)
-		cleanupContainer(context.Background(), cli, containerID)
-	})
 	require.NotEmpty(t, containerID)
 	require.Eventually(t, func() bool {
 		o, err := getContainerLogs(ctx, cli, containerID)
@@ -95,11 +80,6 @@ func TestGrpcConfigureNegativeEndpoints(t *testing.T) {
 
 func TestGrpcConfigureEndpoints(t *testing.T) {
 	ctx, cli, containerID := setup(t, "grpc-sanity"+"-"+uuid.NewString()[:4])
-	t.Cleanup(func() {
-		o, _ := getContainerLogs(ctx, cli, containerID)
-		t.Log(o)
-		cleanupContainer(context.Background(), cli, containerID)
-	})
 	require.NotEmpty(t, containerID)
 	require.Eventually(t, func() bool {
 		o, err := getContainerLogs(ctx, cli, containerID)
@@ -123,11 +103,6 @@ func TestGrpcConfigureEndpoints(t *testing.T) {
 
 func TestGrpcConfigureRunStopNoLoad(t *testing.T) {
 	ctx, cli, containerID := setup(t, "grpc-sanity"+"-"+uuid.NewString()[:4])
-	t.Cleanup(func() {
-		o, _ := getContainerLogs(ctx, cli, containerID)
-		t.Log(o)
-		cleanupContainer(context.Background(), cli, containerID)
-	})
 	require.NotEmpty(t, containerID)
 	require.Eventually(t, func() bool {
 		o, err := getContainerLogs(ctx, cli, containerID)

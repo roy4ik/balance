@@ -39,6 +39,11 @@ func setup(t *testing.T, name string) (context.Context, *client.Client, string) 
 		},
 	}
 	containerID, err := createAndStartContainer(ctx, cli, config, strings.ToLower(t.Name())+"-"+strings.ToLower(name))
+	t.Cleanup(func() {
+		o, _ := getContainerLogs(ctx, cli, containerID)
+		t.Log(o)
+		cleanupContainer(context.Background(), cli, containerID)
+	})
 	require.NoError(t, err)
 
 	return ctx, cli, containerID
