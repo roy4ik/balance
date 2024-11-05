@@ -1,3 +1,4 @@
 **.git/
 **.tar.gz
 **test.go
+tmp/
