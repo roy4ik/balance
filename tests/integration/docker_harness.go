@@ -71,11 +71,21 @@ func createAndStartContainer(ctx context.Context, cli *client.Client, config *co
 	return containerID, nil
 }
 
+func stopContainer(ctx context.Context, cli *client.Client, containerID string) error {
+	if err := cli.ContainerStop(ctx, containerID, container.StopOptions{}); err != nil {
+		slog.Error(fmt.Sprintf("error removing Docker container: %v", err))
+		return err
+	}
+	cli.ContainerWait(ctx, containerID, container.WaitConditionNotRunning)
+	return nil
+}
+
 func cleanupContainer(ctx context.Context, cli *client.Client, containerID string) error {
 	if err := cli.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{Force: true}); err != nil {
 		slog.Error(fmt.Sprintf("error removing Docker container: %v", err))
 		return err
 	}
+	cli.ContainerWait(ctx, containerID, container.WaitConditionRemoved)
 	return nil
 }
 

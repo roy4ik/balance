@@ -42,6 +42,7 @@ func setup(t *testing.T, name string) (context.Context, *client.Client, string) 
 	t.Cleanup(func() {
 		o, _ := getContainerLogs(ctx, cli, containerID)
 		t.Log(o)
+		stopContainer(context.Background(), cli, containerID)
 		cleanupContainer(context.Background(), cli, containerID)
 	})
 	require.NoError(t, err)
@@ -69,6 +70,10 @@ func setupSlbWithBackends(t *testing.T, numBackends int) (context.Context, *clie
 			},
 		}
 		backendContainerID, err := createAndStartContainer(ctx, cli, config, strings.ToLower(t.Name())+"-"+"backend-"+uuid.NewString()[:4])
+		t.Cleanup(func() {
+			stopContainer(context.Background(), cli, backendContainerID)
+			cleanupContainer(context.Background(), cli, backendContainerID)
+		})
 		require.NoError(t, err)
 		// required is the shortened id here as the backend provides the full id.
 		backendContainers = append(backendContainers, backendContainerID[:11])
