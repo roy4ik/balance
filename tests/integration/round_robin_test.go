@@ -6,27 +6,16 @@ package integration
 import (
 	api "balance/gen"
 	apiService "balance/services/api_service"
-	"context"
 	"io"
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func TestRoundRobinSanity(t *testing.T) {
-	ctx, cli, slbContainerID, backendIDs := setupSlbWithBackends(t, 4)
-	t.Cleanup(func() {
-		time.Sleep(1)
-		o, _ := getContainerLogs(ctx, cli, slbContainerID)
-		t.Log(o)
-		cleanupContainer(context.Background(), cli, slbContainerID)
-		for _, backend := range backendIDs {
-			cleanupContainer(context.Background(), cli, backend)
-		}
-	})
+	ctx, _, slbContainerID, backendIDs := setupSlbWithBackends(t, 4)
 	slbIp, err := getContainerIP(slbContainerID)
 	require.NoError(t, err)
 	// get backend ids to ips
