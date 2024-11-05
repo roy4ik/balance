@@ -5,6 +5,7 @@ package integration
 
 import (
 	api "balance/gen"
+	apiService "balance/services/api_service"
 	"context"
 	"strings"
 	"testing"
@@ -58,8 +59,8 @@ func setupSlbWithBackends(t *testing.T, numBackends int) (context.Context, *clie
 		config := &container.Config{
 			Image: imageTags[0],
 			ExposedPorts: nat.PortSet{
-				"443":             struct{}{},
-				backendListenPort: struct{}{},
+				apiService.DefaultApiPort: struct{}{},
+				backendListenPort:         struct{}{},
 			},
 		}
 		backendContainerID, err := createAndStartContainer(ctx, cli, config, strings.ToLower(t.Name())+"-"+"backend-"+uuid.NewString()[:4])

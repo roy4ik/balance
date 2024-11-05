@@ -5,6 +5,7 @@ package integration
 
 import (
 	api "balance/gen"
+	apiService "balance/services/api_service"
 	"context"
 	"io"
 	"net/http"
@@ -42,7 +43,7 @@ func TestRandomSanity(t *testing.T) {
 		s := &api.Server{Address: ip}
 		config.Endpoints = append(config.Endpoints, s)
 	}
-	apiClient, err := newApiClient(slbIp, "443")
+	apiClient, err := newApiClient(slbIp, apiService.DefaultApiPort)
 	require.NoError(t, err)
 	_, err = apiClient.Configure(ctx, config)
 	require.NoError(t, err)
