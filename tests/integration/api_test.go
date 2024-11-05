@@ -10,20 +10,17 @@ import (
 
 	api "balance/gen"
 
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
-const testNamePrefix = "grpc-sanity"
-
 func TestGRPCSanityNotConfigured(t *testing.T) {
-	_, _, containerID := setup(t, testNamePrefix+"-"+uuid.NewString()[:4])
+	_, _, containerID, certDir := setup(t)
 	require.NotEmpty(t, containerID)
 
 	ip, err := getContainerIP(containerID)
 	require.NoError(t, err)
-	apiClient, err := newApiClient(ip, HostPort)
+	apiClient, err := newApiClient(certDir, ip, HostPort)
 	require.NoError(t, err)
 
 	apiCtx, cancelFunc := context.WithTimeout(context.Background(), time.Second*1)
@@ -33,12 +30,12 @@ func TestGRPCSanityNotConfigured(t *testing.T) {
 }
 
 func TestGrpcConfigureNegativeNoEndpoints(t *testing.T) {
-	_, _, containerID := setup(t, testNamePrefix+"-"+uuid.NewString()[:4])
+	_, _, containerID, certDir := setup(t)
 	require.NotEmpty(t, containerID)
 
 	ip, err := getContainerIP(containerID)
 	require.NoError(t, err)
-	apiClient, err := newApiClient(ip, HostPort)
+	apiClient, err := newApiClient(certDir, ip, HostPort)
 	require.NoError(t, err)
 
 	config := &api.Config{}
@@ -50,12 +47,12 @@ func TestGrpcConfigureNegativeNoEndpoints(t *testing.T) {
 }
 
 func TestGrpcConfigureNegativeEndpoints(t *testing.T) {
-	_, _, containerID := setup(t, testNamePrefix+"-"+uuid.NewString()[:4])
+	_, _, containerID, certDir := setup(t)
 	require.NotEmpty(t, containerID)
 
 	ip, err := getContainerIP(containerID)
 	require.NoError(t, err)
-	apiClient, err := newApiClient(ip, HostPort)
+	apiClient, err := newApiClient(certDir, ip, HostPort)
 	require.NoError(t, err)
 
 	endpoints := []*api.Server{{Address: " ="}}
@@ -68,12 +65,12 @@ func TestGrpcConfigureNegativeEndpoints(t *testing.T) {
 }
 
 func TestGrpcConfigureEndpoints(t *testing.T) {
-	_, _, containerID := setup(t, testNamePrefix+"-"+uuid.NewString()[:4])
+	_, _, containerID, certDir := setup(t)
 	require.NotEmpty(t, containerID)
 
 	ip, err := getContainerIP(containerID)
 	require.NoError(t, err)
-	apiClient, err := newApiClient(ip, HostPort)
+	apiClient, err := newApiClient(certDir, ip, HostPort)
 	require.NoError(t, err)
 
 	// setting this endpoint so the slb itself will be an endpoint asm this address refers to all of its nics
@@ -87,12 +84,12 @@ func TestGrpcConfigureEndpoints(t *testing.T) {
 }
 
 func TestGrpcConfigureRunStopNoLoad(t *testing.T) {
-	_, _, containerID := setup(t, testNamePrefix+"-"+uuid.NewString()[:4])
+	_, _, containerID, certDir := setup(t)
 	require.NotEmpty(t, containerID)
 
 	ip, err := getContainerIP(containerID)
 	require.NoError(t, err)
-	apiClient, err := newApiClient(ip, HostPort)
+	apiClient, err := newApiClient(certDir, ip, HostPort)
 	require.NoError(t, err)
 	endpoints := []*api.Server{{Address: "0.0.0.0"}}
 	config := &api.Config{Endpoints: endpoints}

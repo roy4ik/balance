@@ -15,7 +15,7 @@ import (
 )
 
 func TestRandomSanity(t *testing.T) {
-	ctx, _, slbContainerID, backendIDs := setupSlbWithBackends(t, 4)
+	ctx, _, slbContainerID, backendIDs, certDir := setupSlbWithBackends(t, 4)
 	slbIp, err := getContainerIP(slbContainerID)
 	require.NoError(t, err)
 	// get backend ids to ips
@@ -32,7 +32,7 @@ func TestRandomSanity(t *testing.T) {
 		s := &api.Server{Address: ip}
 		config.Endpoints = append(config.Endpoints, s)
 	}
-	apiClient, err := newApiClient(slbIp, apiService.DefaultApiPort)
+	apiClient, err := newApiClient(certDir, slbIp, apiService.DefaultApiPort)
 	require.NoError(t, err)
 	_, err = apiClient.Configure(ctx, config)
 	require.NoError(t, err)
