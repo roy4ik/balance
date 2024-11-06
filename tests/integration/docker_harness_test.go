@@ -28,7 +28,7 @@ func TestSLBDockerStartSanity(t *testing.T) {
 	config := &container.Config{
 		Image: imageTags[0],
 	}
-	containerID, err := createContainer(ctx, cli, config, strings.ToLower(t.Name()+"-"+uuid.NewString()[:4]))
+	containerID, err := createContainer(ctx, cli, config, nil, strings.ToLower(t.Name()+"-"+uuid.NewString()[:4]))
 	require.NoError(t, err)
 	t.Cleanup(func() { cleanupContainer(context.Background(), cli, containerID) })
 	require.NoError(t, startContainer(cli, ctx, containerID))
@@ -51,7 +51,7 @@ func TestSLBDockerCreateFailedBadImageName(t *testing.T) {
 			"5001":                    struct{}{},
 		},
 	}
-	id, err := createContainer(context.Background(), cli, config, strings.ToLower(t.Name()))
+	id, err := createContainer(context.Background(), cli, config, nil, strings.ToLower(t.Name()))
 	t.Cleanup(func() { cleanupContainer(context.Background(), cli, id) })
 	require.Error(t, err)
 	require.Empty(t, id)
