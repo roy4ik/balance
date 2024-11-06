@@ -35,10 +35,6 @@ func createDockerClient() (*client.Client, error) {
 	return client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 }
 
-const (
-	HostPort          = apiService.DefaultApiPort
-	backendListenPort = "8080"
-)
 
 func createContainer(ctx context.Context, cli *client.Client, config *container.Config, containerName string) (string, error) {
 	// Create host configuration with port mapping
