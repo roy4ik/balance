@@ -12,14 +12,10 @@ import (
 	"log/slog"
 	"time"
 
-	apiService "balance/services/api_service"
-	backendServer "balance/tests/integration/mock/backend/server"
-
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
-	"github.com/docker/go-connections/nat"
 )
 
 const (
@@ -35,25 +31,8 @@ func createDockerClient() (*client.Client, error) {
 	return client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 }
 
-
-func createContainer(ctx context.Context, cli *client.Client, config *container.Config, containerName string) (string, error) {
+func createContainer(ctx context.Context, cli *client.Client, config *container.Config, hostConfig *container.HostConfig, containerName string) (string, error) {
 	// Create host configuration with port mapping
-	hostConfig := &container.HostConfig{
-		PortBindings: nat.PortMap{
-			apiService.DefaultApiPort + "/tcp": []nat.PortBinding{
-				{
-					HostIP:   "0.0.0.0",
-					HostPort: HostPort,
-				},
-			},
-			"8080/tcp": []nat.PortBinding{
-				{
-					HostIP:   "0.0.0.0",
-					HostPort: backendServer.ListenPort,
-				},
-			},
-		},
-	}
 	resp, err := cli.ContainerCreate(ctx, config, hostConfig, nil, nil, containerName)
 	if err != nil {
 		return "", fmt.Errorf("error creating Docker container: %v", err)
