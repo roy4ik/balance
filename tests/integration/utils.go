@@ -19,6 +19,11 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+const (
+	HostPort          = apiService.DefaultApiPort
+	backendListenPort = "8080"
+)
+
 func newApiClient(serverAddress string, port string) (api.BalanceClient, error) {
 	conn, err := grpc.NewClient(serverAddress+":"+port, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	return api.NewBalanceClient(conn), err
