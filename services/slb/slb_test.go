@@ -1,7 +1,7 @@
 package slb
 
 import (
-	"balance/pkg/mock"
+	"balance/internal/mock"
 	"fmt"
 	"io"
 	"log/slog"

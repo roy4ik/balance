@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"balance/pkg/mock"
+	"balance/internal/mock"
 )
 
 type RRTest struct {
