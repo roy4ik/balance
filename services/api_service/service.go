@@ -2,9 +2,9 @@ package apiService
 
 import (
 	api "balance/gen"
-	"balance/services/slb"
-	randomSelector "balance/services/slb/selectors/random"
-	"balance/services/slb/selectors/roundRobin"
+	"balance/slb"
+	randomSelector "balance/slb/selectors/random"
+	"balance/slb/selectors/roundRobin"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
