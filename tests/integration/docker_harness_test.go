@@ -4,7 +4,7 @@
 package integration
 
 import (
-	apiService "balance/services/api_service"
+	"balance/internal/apiService"
 	"context"
 	"os"
 	"os/exec"

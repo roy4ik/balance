@@ -5,7 +5,7 @@ package integration
 
 import (
 	api "balance/gen"
-	apiService "balance/services/api_service"
+	"balance/internal/apiService"
 	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
