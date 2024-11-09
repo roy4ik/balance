@@ -1,7 +1,7 @@
 package main
 
 import (
-	"balance/apiService"
+	"balance/internal/apiService"
 	"log/slog"
 	"os"
 )
