@@ -2,9 +2,9 @@ FROM go-build:latest AS builder
 
 COPY . .
 RUN go mod download
-RUN go generate ./services/...
+RUN go generate ./slb/...
 # save results to test_results which forces caching of the test results. 
 # this avoids testing again on each build without changes
 RUN go test -coverprofile=coverage.out ./... && go tool cover -html=coverage.out -o coverage.html
-RUN go build -o ./balance
-
+# build apiServer as balance
+RUN go build -C ./balanceServer -o ../balance
