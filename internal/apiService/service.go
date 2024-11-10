@@ -1,3 +1,4 @@
+//go:generate protoc --proto_path=../../api --go_out=.. --go-grpc_out=.. balance.proto
 package apiService
 
 import (

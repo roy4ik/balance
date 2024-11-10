@@ -3,6 +3,9 @@ import "google/protobuf/empty.proto";
 
 option go_package = "../gen";
 
+// Errors
+
+
 service Balance {
   // Sets the configuration of the Software Load Balancer before its started.
   // If the loadbalancer is running, 
