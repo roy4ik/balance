@@ -23,7 +23,7 @@ The Slb can be used as a handler on instances of http.Server
 ```mermaid
 flowchart TD
 ClientServer[Client]
-FrontendServer[`FrontendServer: 
+FrontendServer[FrontendServer: 
 Handler: Slb]
 ClientServer ~~~ FrontendServer
 Start[/New/]
