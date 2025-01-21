@@ -6,7 +6,6 @@ package integration
 import (
 	api "balance/gen"
 	"balance/internal/apiService"
-	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -19,16 +18,8 @@ import (
 	"net"
 	"os"
 	"path"
-	"path/filepath"
-	"strings"
-	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/client"
-	"github.com/docker/go-connections/nat"
-	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -89,142 +80,7 @@ func getClientTlsCreds(certDir string) (credentials.TransportCredentials, error)
 	return creds, nil
 }
 
-func setup(t *testing.T) (context.Context, *client.Client, string, string) {
-	ctx := context.Background()
-
-	cli, err := createDockerClient()
-	require.NoError(t, err)
-
-	imageTags := []string{slbImageRepo + imgVersion}
-	testInstanceName := testNameWithUUID(t)
-	certDirAbsPath, err := filepath.Abs(certsDirLocalPath + testInstanceName)
-	require.NoError(t, err)
-	certDir := certDirAbsPath + "/"
-	require.NoError(t, os.MkdirAll(certDir, 0755))
-	t.Cleanup(func() { os.RemoveAll(certDir) })
-
-	config := &container.Config{
-		Image: imageTags[0],
-		ExposedPorts: nat.PortSet{
-			nat.Port(HostPort): struct{}{},
-			backendListenPort:  struct{}{},
-		},
-		// Due to the certificates needing to be created with the container id which is
-		// obtainable only after starting the container a wait script is needed to wait for the certificates
-		// before running balance
-		Entrypoint: []string{"/bin/sh", "-c", fmt.Sprintf(
-			"for file in %s %s %s; do while [ ! -f $file ]; do sleep 0.001 && ls %s; done; done; echo 'certificates created'; %s",
-			apiService.DefaultServiceKeyPath,
-			apiService.DefaultServiceKeyPath,
-			apiService.DefaultCAPath,
-			apiService.DefaultCertsDirectory,
-			"exec ./balance", // the command is executed with exec to disconnect from sh
-		)},
-	}
-
-	hostConfig := &container.HostConfig{
-		PortBindings: nat.PortMap{
-			apiService.DefaultApiPort + "/tcp": []nat.PortBinding{
-				{
-					HostIP:   "0.0.0.0",
-					HostPort: HostPort,
-				},
-			},
-			backendListenPort + "/tcp": []nat.PortBinding{
-				{
-					HostIP:   "0.0.0.0",
-					HostPort: backendListenPort,
-				},
-			},
-		},
-		Mounts: []mount.Mount{{
-			Type:   mount.TypeBind,
-			Source: certDir,
-			Target: apiService.DefaultCertsDirectory,
-		}},
-	}
-	containerID, err := createContainer(ctx, cli, config, hostConfig, strings.ToLower(testInstanceName)+"-"+"slb")
-	t.Cleanup(func() {
-		o, _ := getContainerLogs(ctx, cli, containerID)
-		t.Log(o)
-		stopContainer(context.Background(), cli, containerID)
-		cleanupContainer(context.Background(), cli, containerID)
-	})
-	require.NoError(t, err)
-
-	require.NoError(t, startContainer(cli, ctx, containerID))
-	setupMtls(t, containerID, certDir)
-
-	// stop and start container to make balance start without delay, waiting for files
-	require.NoError(t, stopContainer(ctx, cli, containerID))
-	require.NoError(t, startContainer(cli, ctx, containerID))
-
-	return ctx, cli, containerID, certDir
-}
-
-func setupSlbWithBackends(t *testing.T, numBackends int) (context.Context, *client.Client, string, []string, string) {
-	// setup slb
-	ctx, cli, containerID, certDir := setup(t)
-	// setup backends
-	backendContainers := make([]string, 0)
-	for i := 0; i < numBackends; i++ {
-		ctx := context.Background()
-
-		cli, err := createDockerClient()
-		require.NoError(t, err)
-
-		imageTags := []string{BackEndImgName + BackendImgVersion}
-		config := &container.Config{
-			Image: imageTags[0],
-			ExposedPorts: nat.PortSet{
-				apiService.DefaultApiPort: struct{}{},
-				backendListenPort:         struct{}{},
-			},
-		}
-		hostConfig := &container.HostConfig{
-			PortBindings: nat.PortMap{
-				backendListenPort + "/tcp": []nat.PortBinding{
-					{
-						HostIP:   "0.0.0.0",
-						HostPort: backendListenPort,
-					},
-				},
-			},
-			Mounts: []mount.Mount{{
-				Type:   mount.TypeBind,
-				Source: certDir,
-				Target: apiService.DefaultCertsDirectory,
-			}},
-		}
-		backendContainerID, err := createContainer(ctx, cli, config, hostConfig, strings.ToLower(testNameWithUUID(t))+"-"+"backend-")
-		t.Cleanup(func() {
-			stopContainer(context.Background(), cli, backendContainerID)
-			cleanupContainer(context.Background(), cli, backendContainerID)
-		})
-		require.NoError(t, err)
-		// required is the shortened id here as the backend provides the full id.
-		backendContainers = append(backendContainers, backendContainerID[:11])
-		require.NoError(t, startContainer(cli, ctx, backendContainerID))
-	}
-	return ctx, cli, containerID, backendContainers, certDir
-}
-
-func setupMtls(t *testing.T, containerID string, localCertsDir string) {
-	// get local ips
-	outboundIP, err := getOutBoundIP()
-	require.NoError(t, err)
-	localIP, err := getLocalIP()
-	require.NoError(t, err)
-
-	var ip string
-	require.Eventually(t, func() bool {
-		ip, _ = getContainerIP(containerID)
-		return ip != ""
-	}, time.Second*10, time.Millisecond*30)
-
-	require.NotEmpty(t, ip)
-	require.NoError(t, err)
-
+func setupMtls(t require.TestingT, outboundIP net.IP, localIP net.IP, ip string, localCertsDir string) {
 	// Create the CA
 
 	// Both the server and the client must be in the SANs
@@ -237,7 +93,7 @@ func setupMtls(t *testing.T, containerID string, localCertsDir string) {
 	// Generate server and client certificates signed by the CA
 	serverCertPEM, serverKeyPEM, err := generateCertificate(caCert, caKey, CN, []net.IP{net.ParseIP(ip)}, dnsNames)
 	require.NoError(t, err)
-	clientCertPEM, clientKeyPEM, err := generateCertificate(caCert, caKey, CN, []net.IP{localIP, outboundIP}, dnsNames)
+	clientCertPEM, clientKeyPEM, err := generateCertificate(caCert, caKey, CN, []net.IP{net.IP(localIP), outboundIP}, dnsNames)
 	require.NoError(t, err)
 
 	// Save Certs
@@ -384,8 +240,4 @@ func getOutBoundIP() (net.IP, error) {
 	// Get the local address of the connection and extract the IP
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
 	return localAddr.IP, nil
-}
-
-func testNameWithUUID(t *testing.T) string {
-	return t.Name() + "-" + uuid.NewString()[:4]
 }
