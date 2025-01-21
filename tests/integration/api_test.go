@@ -15,10 +15,11 @@ import (
 )
 
 func TestGRPCSanityNotConfigured(t *testing.T) {
-	_, _, containerID, certDir := setup(t)
+	deployment := NewDockerDeployment(t)
+	containerID, certDir := deployment.setup()
 	require.NotEmpty(t, containerID)
 
-	ip, err := getContainerIP(containerID)
+	ip, err := deployment.getIP(containerID)
 	require.NoError(t, err)
 	apiClient, err := newApiClient(certDir, ip, HostPort)
 	require.NoError(t, err)
@@ -30,10 +31,10 @@ func TestGRPCSanityNotConfigured(t *testing.T) {
 }
 
 func TestGrpcConfigureNegativeNoEndpoints(t *testing.T) {
-	_, _, containerID, certDir := setup(t)
-	require.NotEmpty(t, containerID)
+	deployment := NewDockerDeployment(t)
+	containerID, certDir := deployment.setup()
 
-	ip, err := getContainerIP(containerID)
+	ip, err := deployment.getIP(containerID)
 	require.NoError(t, err)
 	apiClient, err := newApiClient(certDir, ip, HostPort)
 	require.NoError(t, err)
@@ -47,10 +48,10 @@ func TestGrpcConfigureNegativeNoEndpoints(t *testing.T) {
 }
 
 func TestGrpcConfigureNegativeEndpoints(t *testing.T) {
-	_, _, containerID, certDir := setup(t)
-	require.NotEmpty(t, containerID)
+	deployment := NewDockerDeployment(t)
+	containerID, certDir := deployment.setup()
 
-	ip, err := getContainerIP(containerID)
+	ip, err := deployment.getIP(containerID)
 	require.NoError(t, err)
 	apiClient, err := newApiClient(certDir, ip, HostPort)
 	require.NoError(t, err)
@@ -65,10 +66,10 @@ func TestGrpcConfigureNegativeEndpoints(t *testing.T) {
 }
 
 func TestGrpcConfigureEndpoints(t *testing.T) {
-	_, _, containerID, certDir := setup(t)
-	require.NotEmpty(t, containerID)
+	deployment := NewDockerDeployment(t)
+	containerID, certDir := deployment.setup()
 
-	ip, err := getContainerIP(containerID)
+	ip, err := deployment.getIP(containerID)
 	require.NoError(t, err)
 	apiClient, err := newApiClient(certDir, ip, HostPort)
 	require.NoError(t, err)
@@ -84,10 +85,10 @@ func TestGrpcConfigureEndpoints(t *testing.T) {
 }
 
 func TestGrpcConfigureRunStopNoLoad(t *testing.T) {
-	_, _, containerID, certDir := setup(t)
-	require.NotEmpty(t, containerID)
+	deployment := NewDockerDeployment(t)
+	containerID, certDir := deployment.setup()
 
-	ip, err := getContainerIP(containerID)
+	ip, err := deployment.getIP(containerID)
 	require.NoError(t, err)
 	apiClient, err := newApiClient(certDir, ip, HostPort)
 	require.NoError(t, err)
