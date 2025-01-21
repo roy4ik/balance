@@ -33,8 +33,7 @@ serve[/ServerHTTP/]
 backendResponse[Response]
 select[/Select/]
 
-Start -->|`validate config, 
-and set endpoints`| FrontendServer
+Start -->|`validate config, and set endpoints`| FrontendServer
 ClientServer --> clientRequest --> FrontendServer
 
 FrontendServer --> FrontendHandler[Handler] --> FrontendServeHTTP
