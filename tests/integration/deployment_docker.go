@@ -117,7 +117,6 @@ func (t *DockerDeployment) setup() (string, string) {
 		time.Second*10,
 		time.Millisecond*30,
 		fmt.Sprintf("container (%s) IP could not be obtained", containerID[:12]))
-	t.Log(localIP)
 	setupMtls(t, outboundIP, localIP, ip, certDir)
 	require.NotEmpty(t, ip)
 
@@ -184,7 +183,9 @@ func (t *DockerDeployment) setupBackends(numBackends int, certDir string) []stri
 func (t *DockerDeployment) addContainerCleanup(containerID string) {
 	t.Cleanup(func() {
 		o, _ := docker.GetContainerLogs(t.ctx, t.client, containerID)
-		t.Log(o)
+		if t.ctx.Err() != nil {
+			t.Log(o)
+		}
 		if err := docker.StopContainer(t.ctx, t.client, containerID); err != nil {
 			t.Error(err)
 		}
