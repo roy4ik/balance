@@ -14,15 +14,15 @@ clean: docker-clean-balance
 
 go-build-docker:
 	echo "Building go build docker"
-	docker build -f ./docker/Dockerfile.go-build -t go-build --cache-from go-build:latest .
+	docker build -f ./docker/Dockerfile.go-build -t go-build .
 
 balance-build-docker: go-build-docker
 	echo "Building balance build docker"
-	docker build -f ./docker/Dockerfile.balance-build -t balance-build --cache-from balance-build:latest .
+	docker build -f ./docker/Dockerfile.balance-build -t balance-build .
 
 balance-docker: balance-build-docker
 	echo "Building balance"
-	docker build -f ./docker/Dockerfile.balance -t balance --cache-from balance:latest .
+	docker build -f ./docker/Dockerfile.balance -t balance .
 
 # Default rule to clean all with specific prefix
 docker-clean-%: docker-clean-containers-% docker-clean-images-% docker-clean-volumes-% docker-clean-networks-%
