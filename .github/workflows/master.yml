@@ -1,0 +1,80 @@
+name: Tests
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  setup:
+    name: setup
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    - name: Set up Go
+      uses: actions/setup-go@v4
+    - name: Install Protobuf
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y protobuf-compiler
+        go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+        go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+    - name: Download go modules
+      run: go mod download
+    - name: Generate api
+      run: make gen
+    - name: Cache Generated API
+      uses: actions/cache@v3
+      with:
+        path: gen
+        key: ${{ runner.os }}-gen-${{ hashFiles('gen/**') }}
+
+  unit-test:
+    name: unit-test
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    - name: Get Generated API Cache
+      uses: actions/cache@v3
+      with:
+        path: gen
+        key: ${{ runner.os }}-gen-${{ hashFiles('gen/**') }}
+    - name: Set up Go
+      uses: actions/setup-go@v4
+    - name: Run Unit Tests
+      run: go test -v ./...
+
+  integration-test:
+    name: integration-test
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    - name: Get Generated API Cache
+      uses: actions/cache@v3
+      with:
+        path: gen
+        key: ${{ runner.os }}-gen-${{ hashFiles('gen/**') }}
+    - name: Setup docker
+      uses: docker/setup-docker-action@v4.1.0
+    - name: Set docker context
+      run: docker context use default
+    - name: Set up Go
+      uses: actions/setup-go@v4
+    - name: Install Protobuf
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y protobuf-compiler
+        go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+        go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+    - name: Build docker images
+      run: |
+        make balance-docker
+        make -C ./tests/mock/backend
+    - name: Run Integration Tests
+      run: make test-integration
