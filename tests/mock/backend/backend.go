@@ -1,12 +1,12 @@
-//go:build integration
-// +build integration
+//go:build mock
+// +build mock
 
 package main
 
 //go:generate make -C . backend-docker
 
 import (
-	"balance/tests/integration/mock/backend/server"
+	"balance/tests/mock/backend/server"
 	"fmt"
 	"net/http"
 )

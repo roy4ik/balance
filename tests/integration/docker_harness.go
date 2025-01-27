@@ -1,7 +1,8 @@
 //go:build integration
 // +build integration
 
-//go:generate make -C ../.. balance-docker
+//go:generate make -C ./../../ balance-docker
+//go:generate make -C ./../mock/backend/ backend-docker
 
 package integration
 

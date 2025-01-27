@@ -2,3 +2,4 @@
 **.tar.gz
 **test.go
 tmp/
+tests/integration/
