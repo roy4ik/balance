@@ -1,9 +1,10 @@
 FROM go-build:latest AS builder
-
-COPY . .
+WORKDIR /app/
+COPY ./go.mod /app/go.mod
+COPY ./go.sum /app/go.sum
+COPY ./tests/mock/backend /app/tests/mock/backend
 RUN go mod download
-RUN go generate ./slb/...
-RUN go build -o ./backend -tags=integration ./tests/integration/mock/backend
+RUN go build -o ./backend -tags=mock ./tests/mock/backend
 
 FROM golang:1.22.4-alpine3.20 AS service
 COPY --from=builder /app/backend .
