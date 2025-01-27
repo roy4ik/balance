@@ -45,9 +45,35 @@ func CreateContainer(ctx context.Context, client *client.Client, config *contain
 }
 
 func StartContainer(ctx context.Context, client *client.Client, containerID string) error {
+	waitRunning := func(running chan bool) {
+		defer close(running)
+		waitCtx, cancel := context.WithTimeout(ctx, time.Second*3)
+		defer cancel()
+		for {
+			select {
+			case <-waitCtx.Done():
+				running <- false
+				return
+			default:
+				inspect, _ := client.ContainerInspect(ctx, containerID)
+				if inspect.State.Running {
+					running <- true
+					return
+				}
+				<-time.After(time.Millisecond * 30)
+			}
+		}
+
+	}
 	if err := client.ContainerStart(ctx, containerID, types.ContainerStartOptions{}); err != nil {
 		return fmt.Errorf("error starting Docker container: %v", err)
 	}
+	running := make(chan bool)
+	go waitRunning(running)
+	if running := <-running; !running {
+		return fmt.Errorf("")
+	}
+
 	return nil
 }
 
