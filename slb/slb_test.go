@@ -2,6 +2,7 @@ package slb
 
 import (
 	"balance/internal/mock"
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -10,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -37,10 +39,10 @@ func (s *SelectorMock) Remove(*http.Server) error {
 func (s *SelectorMock) Select() (*http.Server, error) {
 	url := &url.URL{}
 	transport := mock.TransPortResponseFunc(func(req *http.Request) (*http.Response, error) {
-		r := &s.expectedResponse
-		defer r.Body.Close()
 		slog.Info("backend received request")
-		return r, nil
+		return &http.Response{
+			StatusCode: s.expectedResponse.StatusCode,
+			Body:       s.expectedResponse.Body}, nil
 	})
 	proxyHandler := httputil.NewSingleHostReverseProxy(url)
 	proxyHandler.Transport = transport
@@ -121,25 +123,47 @@ func TestSLB(t *testing.T) {
 				require.NoError(t, err)
 
 				// run SLB
-				var runErr = make(chan error, 1)
+				var runErr = make(chan error)
 				go func(t *testing.T, slb *Slb) {
 					defer close(runErr)
 					runErr <- slb.Run()
-					require.NoError(t, err)
 				}(t, slb)
-
+				checkRunError := func() {
+					deadline, _ := t.Deadline()
+					ctx, cancel := context.WithTimeout(context.Background(), time.Until(deadline))
+					defer cancel()
+					for {
+						select {
+						case err := <-runErr:
+							require.NoError(t, err)
+							return
+						case <-ctx.Done():
+							return
+						default:
+							<-time.After(time.Millisecond * 10)
+						}
+					}
+				}
+				go checkRunError()
+				// tiny wait for the slb to start
+				<-time.After(time.Millisecond * 250)
 				// send request to SLB
-				targetUrl := "http://" + string(listenAddress) + ":" + listenPort + "/food"
-				slog.Info("sending request to " + targetUrl)
-				resp, err := http.Get(targetUrl)
-				require.NoError(t, err)
-				defer resp.Body.Close()
+				sendRequest := func() {
+					targetUrl := "http://" + string(listenAddress) + ":" + listenPort + "/food"
+					slog.Info("sending request to " + targetUrl)
+					resp, err := http.Get(targetUrl)
+					require.NoError(t, err)
+					defer resp.Body.Close()
 
-				// validate response
-				body, err := io.ReadAll(resp.Body)
-				require.NoError(t, err)
-				require.Equal(t, expectedRespBody, string(body))
-				require.Equal(t, expectedRespStatus, resp.StatusCode)
+					// validate response
+					body, err := io.ReadAll(resp.Body)
+					require.NoError(t, err)
+					require.Equal(t, expectedRespStatus, resp.StatusCode)
+					require.Equal(t, expectedRespBody, string(body))
+				}
+
+				sendRequest()
+
 			},
 		},
 	}
