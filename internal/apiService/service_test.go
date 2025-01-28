@@ -39,6 +39,7 @@ func TestConfigurationWithSLBShouldReturnConfig(t *testing.T) {
 		ListenAddress: localAddress,
 		ListenPort:    defaultPort,
 		Endpoints:     []*gen.Server{{Address: localAddress}},
+		Strategy:      gen.SelectorStrategy_SELECTOR_STRATEGY_RANDOM,
 	}
 	_, err := balanceServer.Configure(context.Background(), slbConfig)
 	require.NoError(t, err)
@@ -47,6 +48,7 @@ func TestConfigurationWithSLBShouldReturnConfig(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, slbConfig.ListenAddress, config.ListenAddress)
 	require.Equal(t, slbConfig.ListenPort, config.ListenPort)
+	require.Exactly(t, gen.SelectorStrategy_SELECTOR_STRATEGY_RANDOM, config.Strategy)
 }
 
 func TestConfigureShouldSetNewConfig(t *testing.T) {
