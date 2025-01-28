@@ -59,6 +59,23 @@ func TestConfigureShouldSetNewConfig(t *testing.T) {
 
 	_, err := balanceServer.Configure(context.Background(), newConfig)
 	require.NoError(t, err)
+	// ensure it can be set again, although server is started
+	_, err = balanceServer.Run(context.Background(), &emptypb.Empty{})
+	require.NoError(t, err)
+	newConfig2 := &gen.Config{
+		ListenAddress: localAddress,
+		ListenPort:    "9092",
+		Endpoints:     []*gen.Server{{Address: localAddress}},
+		Strategy:      gen.SelectorStrategy_SELECTOR_STRATEGY_UNSPECIFIED,
+	}
+	_, err = balanceServer.Configure(context.Background(), newConfig)
+	require.NoError(t, err)
+	cfg, err := balanceServer.Configuration(context.Background(), &emptypb.Empty{})
+	require.NoError(t, err)
+	require.NotEqual(t, newConfig2.ListenPort, cfg.ListenPort)
+	// a unspecified strategy should not be settable
+	require.NotEqual(t, newConfig2.Strategy, cfg.Strategy)
+
 }
 
 func TestRunNoSLBShouldReturnError(t *testing.T) {
