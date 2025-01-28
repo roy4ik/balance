@@ -15,7 +15,6 @@ import (
 	"net/http"
 	"os"
 	"reflect"
-	"strings"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -50,10 +49,10 @@ func (b *balanceServer) Configuration(ctx context.Context, _ *emptypb.Empty) (*a
 	}
 	strategy := api.SelectorStrategy_SELECTOR_STRATEGY_UNSPECIFIED
 	t := reflect.TypeOf(b.selector)
-	if strings.Contains(api.SelectorStrategy_SELECTOR_STRATEGY_ROUND_ROBIN.String(), t.Name()) {
+	if reflect.TypeOf(&roundRobin.RoundRobin{}) == t {
 		strategy = api.SelectorStrategy_SELECTOR_STRATEGY_ROUND_ROBIN
 	}
-	if strings.Contains(api.SelectorStrategy_SELECTOR_STRATEGY_RANDOM.String(), t.Name()) {
+	if reflect.TypeOf(&randomSelector.Random{}) == t {
 		strategy = api.SelectorStrategy_SELECTOR_STRATEGY_RANDOM
 	}
 	if strategy == api.SelectorStrategy_SELECTOR_STRATEGY_UNSPECIFIED {
