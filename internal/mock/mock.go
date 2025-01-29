@@ -11,7 +11,7 @@ func RandomAddress() string {
 }
 
 func RandomPort() string {
-	return fmt.Sprint(rand.Intn(5000 - 1024 + 1))
+	return fmt.Sprint(1024 + rand.Intn(50000))
 }
 
 func newServer(addr string) *http.Server {
