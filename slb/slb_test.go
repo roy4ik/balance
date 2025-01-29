@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -127,7 +128,8 @@ func TestSLB(t *testing.T) {
 					runErr <- slb.Run()
 					require.NoError(t, err)
 				}(t, slb)
-
+				// wait for the slb to init properly
+				<-time.After(time.Millisecond * 250)
 				// send request to SLB
 				targetUrl := "http://" + string(listenAddress) + ":" + listenPort + "/food"
 				slog.Info("sending request to " + targetUrl)
