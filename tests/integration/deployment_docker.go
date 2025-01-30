@@ -8,6 +8,7 @@ package integration
 
 import (
 	"balance/internal/apiService"
+	tlsConfig "balance/internal/tls"
 	"balance/tests/deployment/docker"
 	"context"
 	"fmt"
@@ -60,10 +61,10 @@ func (t *DockerDeployment) setup() (string, string) {
 		// before running balance
 		Entrypoint: []string{"/bin/sh", "-c", fmt.Sprintf(
 			"for file in %s %s %s; do while [ ! -f $file ]; do sleep 0.001 && ls %s; done; done; echo 'certificates created'; %s",
-			apiService.DefaultServiceKeyPath,
-			apiService.DefaultServiceKeyPath,
-			apiService.DefaultCAPath,
-			apiService.DefaultCertsDirectory,
+			tlsConfig.DefaultServiceKeyPath,
+			tlsConfig.DefaultServiceKeyPath,
+			tlsConfig.DefaultCAPath,
+			tlsConfig.DefaultCertsDirectory,
 			"exec ./balance", // the command is executed with exec to disconnect from sh
 		)},
 	}
@@ -86,7 +87,7 @@ func (t *DockerDeployment) setup() (string, string) {
 		Mounts: []mount.Mount{{
 			Type:   mount.TypeBind,
 			Source: certDir,
-			Target: apiService.DefaultCertsDirectory,
+			Target: tlsConfig.DefaultCertsDirectory,
 		}},
 	}
 	containerID, err := docker.CreateContainer(t.ctx, t.client, config, hostConfig, strings.ToLower(testInstanceName)+"-"+"slb")
@@ -148,7 +149,7 @@ func (t *DockerDeployment) setupBackends(numBackends int, certDir string) []stri
 		Mounts: []mount.Mount{{
 			Type:   mount.TypeBind,
 			Source: certDir,
-			Target: apiService.DefaultCertsDirectory,
+			Target: tlsConfig.DefaultCertsDirectory,
 		}},
 	}
 	deploy := func(idChan chan string) {

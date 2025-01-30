@@ -7,13 +7,10 @@ import (
 	"balance/internal/selectors/roundRobin"
 	"balance/slb"
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
-	"os"
 	"reflect"
 
 	"google.golang.org/grpc"
@@ -23,10 +20,6 @@ import (
 )
 
 const DefaultApiPort = "443"
-const DefaultCertsDirectory = "/etc/certs/"
-const DefaultCAPath = DefaultCertsDirectory + "ca-cert.pem"
-const DefaultServiceCertPath = DefaultCertsDirectory + "service-cert.pem"
-const DefaultServiceKeyPath = DefaultCertsDirectory + "service-key.pem"
 
 var ErrNotConfigured = fmt.Errorf("slb not configured correctly")
 
@@ -160,39 +153,7 @@ func (a *ApiServer) Stop() {
 	a.Server.GracefulStop()
 }
 
-func getTlsCredentials(caPath string, serviceCertPath string, serviceKeyPath string) (credentials.TransportCredentials, error) {
-	caCert, err := os.ReadFile(caPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read CA certificate:" + err.Error())
-	}
-	caCertPool := x509.NewCertPool()
-	if !caCertPool.AppendCertsFromPEM(caCert) {
-		return nil, fmt.Errorf("failed to append CA certificate to cert pool")
-	}
-
-	// Load server certificate and key
-	serverCert, err := tls.LoadX509KeyPair(serviceCertPath, serviceKeyPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load server certificate and key:" + err.Error())
-	}
-
-	// Configure TLS
-	tlsConfig := &tls.Config{
-		Certificates: []tls.Certificate{serverCert},
-		ClientCAs:    caCertPool,
-		ClientAuth:   tls.RequireAndVerifyClientCert, // RequireAndVerifyFor mTLS
-	}
-
-	// Create gRPC server with TLS credentials
-	creds := credentials.NewTLS(tlsConfig)
-	return creds, nil
-}
-
-func NewApiServer() *ApiServer {
-	creds, err := getTlsCredentials(DefaultCAPath, DefaultServiceCertPath, DefaultServiceKeyPath)
-	if err != nil {
-		panic(err)
-	}
+func NewApiServer(creds credentials.TransportCredentials) *ApiServer {
 	return &ApiServer{
 		Server: NewGrpcServer(creds),
 		Port:   DefaultApiPort,
