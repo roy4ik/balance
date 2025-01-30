@@ -6,10 +6,10 @@ package integration
 import (
 	api "balance/gen"
 	"balance/internal/apiService"
+	tlsConfig "balance/internal/tls"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -22,7 +22,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
 
 func fileNameFromPath(p string) string {
@@ -32,12 +31,12 @@ func fileNameFromPath(p string) string {
 
 var (
 	certsDirLocalPath         = "../../tmp/certs/"
-	clientCertFileName        = "client-cert.pem"
-	clientKeyFileName         = "client-key.pem"
-	caCertFileName     string = fileNameFromPath(apiService.DefaultCAPath)
-	serverCertFileName string = fileNameFromPath(apiService.DefaultServiceCertPath)
-	serverKeyFileName  string = fileNameFromPath(apiService.DefaultServiceKeyPath)
-	caKeyFileName             = "ca-key.pem"
+	caCertFileName     string = fileNameFromPath(tlsConfig.DefaultCAPath)
+	caKeyFileName      string = fileNameFromPath(tlsConfig.DefaultCaKeyFilePath)
+	serverCertFileName string = fileNameFromPath(tlsConfig.DefaultServiceCertPath)
+	serverKeyFileName  string = fileNameFromPath(tlsConfig.DefaultServiceKeyPath)
+	clientCertFileName string = fileNameFromPath(tlsConfig.DefaultClientCertPath)
+	clientKeyFileName  string = fileNameFromPath(tlsConfig.DefaultClientKeyPath)
 )
 
 const (
@@ -46,38 +45,12 @@ const (
 )
 
 func newApiClient(certDir string, serverAddress string, port string) (api.BalanceClient, error) {
-	creds, err := getClientTlsCreds(certDir)
+	creds, err := tlsConfig.GetTlsCredentials(certDir+caCertFileName, certDir+clientCertFileName, certDir+clientKeyFileName)
 	if err != nil {
 		return nil, err
 	}
 	conn, err := grpc.NewClient(serverAddress+":"+port, grpc.WithTransportCredentials(creds))
 	return api.NewBalanceClient(conn), err
-}
-
-func getClientTlsCreds(certDir string) (credentials.TransportCredentials, error) {
-	// Load the CA certificate
-	caCert, err := os.ReadFile(certDir + caCertFileName)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to read CA certificate maybe you need to generate them (make certs): %v", err)
-	}
-	caCertPool := x509.NewCertPool()
-	if !caCertPool.AppendCertsFromPEM(caCert) {
-		return nil, fmt.Errorf("Failed to append CA certificate")
-	}
-
-	// Load the client's certificate and private key
-	clientCert, err := tls.LoadX509KeyPair(certDir+clientCertFileName, certDir+clientKeyFileName)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to load client certificate and key: %v", err)
-	}
-
-	// Configure TLS for the gRPC client
-	tlsConfig := &tls.Config{
-		Certificates: []tls.Certificate{clientCert},
-		RootCAs:      caCertPool,
-	}
-	creds := credentials.NewTLS(tlsConfig)
-	return creds, nil
 }
 
 func setupMtls(t require.TestingT, outboundIP net.IP, localIP net.IP, ip string, localCertsDir string) {

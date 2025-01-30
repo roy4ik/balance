@@ -2,9 +2,12 @@ package main
 
 import (
 	"balance/internal/apiService"
+	"balance/internal/tls"
 	"log/slog"
 	"os"
 )
+
+const DefaultSlbAddress = "0.0.0.0"
 
 func main() {
 	logHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
@@ -18,7 +21,11 @@ func main() {
 			os.Exit(1)
 		}
 	}()
-	apiServer := apiService.NewApiServer()
+	creds, err := tls.GetTlsCredentials(tls.DefaultCAPath, tls.DefaultServiceCertPath, tls.DefaultServiceKeyPath)
+	if err != nil {
+		panic(err)
+	}
+	apiServer := apiService.NewApiServer(creds)
 	defer apiServer.Stop()
 	apiServer.Start()
 	apiServer.Server.GetServiceInfo()
