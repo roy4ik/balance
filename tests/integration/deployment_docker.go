@@ -33,7 +33,28 @@ type DockerDeployment struct {
 }
 
 func (t *DockerDeployment) getIP(id string) (string, error) {
-	return docker.GetIP(t.ctx, t.client, id)
+	ipC, errC := make(chan string), make(chan error)
+	defer close(ipC)
+	defer close(errC)
+	ctx, cancelFunc := context.WithTimeout(t.ctx, time.Second*10)
+	defer cancelFunc()
+	go func() {
+		dockerIp, err := docker.GetIP(t.ctx, t.client, id)
+		if err != nil {
+			errC <- err
+		} else if dockerIp != "" {
+			ipC <- dockerIp
+		}
+		<-time.After(time.Microsecond * 30)
+	}()
+	select {
+	case ip := <-ipC:
+		return ip, nil
+	case err := <-errC:
+		return "", fmt.Errorf("container (%s) IP could not be obtained: : %s", id, err)
+	case <-ctx.Done():
+		return "", fmt.Errorf("container (%s) IP could not be obtained: timeout:", id)
+	}
 }
 
 func (t DockerDeployment) restart(id string) {
@@ -106,24 +127,15 @@ func (t *DockerDeployment) setup() (string, string) {
 
 	// start container and get ip to setup mtls
 	require.NoError(t, docker.StartContainer(t.ctx, t.client, containerID))
-	var ip string
-	require.Eventually(t,
-		func() bool {
-			ip, err = t.getIP(containerID)
-			if err != nil {
-				t.Error(err)
-			}
-			return ip != ""
-		},
-		time.Second*10,
-		time.Millisecond*30,
-		fmt.Sprintf("container (%s) IP could not be obtained", containerID[:12]))
-	setupMtls(t, outboundIP, localIP, ip, certDir)
-	require.NotEmpty(t, ip)
+	ip1, err := t.getIP(containerID[:12])
+	setupMtls(t, outboundIP, localIP, ip1, certDir)
+	require.NotEmpty(t, ip1)
 
 	// stop and start container to make balance start without delay, waiting for files
 	t.restart(containerID)
-
+	ip2, err := t.getIP(containerID[:12])
+	require.NotEmpty(t, ip2)
+	require.Exactly(t, ip1, ip2)
 	return containerID, certDir
 }
 
