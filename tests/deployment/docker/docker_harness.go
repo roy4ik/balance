@@ -71,7 +71,7 @@ func StartContainer(ctx context.Context, client *client.Client, containerID stri
 	running := make(chan bool)
 	go waitRunning(running)
 	if running := <-running; !running {
-		return fmt.Errorf("")
+		return fmt.Errorf("container did not start in time")
 	}
 
 	return nil
