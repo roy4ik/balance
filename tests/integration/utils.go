@@ -64,11 +64,10 @@ func setupMtls(t require.TestingT, outboundIP net.IP, localIP net.IP, ip string,
 	require.NoError(t, err)
 
 	// Generate server and client certificates signed by the CA
-	serverCertPEM, serverKeyPEM, err := generateCertificate(caCert, caKey, CN, []net.IP{net.ParseIP(ip)}, dnsNames)
+	serverCertPEM, serverKeyPEM, err := generateCertificate(caCert, caKey, CN, []net.IP{net.ParseIP(ip), net.ParseIP(apiService.DefaultAddress)}, dnsNames)
 	require.NoError(t, err)
-	clientCertPEM, clientKeyPEM, err := generateCertificate(caCert, caKey, CN, []net.IP{net.IP(localIP), outboundIP}, dnsNames)
+	clientCertPEM, clientKeyPEM, err := generateCertificate(caCert, caKey, CN, []net.IP{net.IP(localIP), net.ParseIP(apiService.DefaultAddress), outboundIP}, dnsNames)
 	require.NoError(t, err)
-
 	// Save Certs
 	type certFile struct {
 		localpath string
