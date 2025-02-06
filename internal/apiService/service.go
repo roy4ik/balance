@@ -3,15 +3,10 @@ package apiService
 
 import (
 	api "balance/gen"
-	randomSelector "balance/internal/selectors/random"
-	"balance/internal/selectors/roundRobin"
-	"balance/slb"
 	"context"
 	"fmt"
 	"log/slog"
 	"net"
-	"net/http"
-	"reflect"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -19,114 +14,43 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
+const DefaultAddress = "127.0.0.1"
 const DefaultApiPort = "443"
 
-var ErrNotConfigured = fmt.Errorf("slb not configured correctly")
-
-type balanceServer struct {
+type BalanceServer struct {
 	api.UnimplementedBalanceServer
-	selector slb.Selector
-	slb      *slb.Slb
+	Client api.BalanceClient
 }
 
-func (b *balanceServer) Configuration(ctx context.Context, _ *emptypb.Empty) (*api.Config, error) {
-	if b.slb == nil {
-		return nil, ErrNotConfigured
-	}
-	cfg := b.slb.Configuration()
-	endpoints := []*api.Server{}
-	for _, endpoint := range cfg.Endpoints {
-		endpoints = append(endpoints, &api.Server{
-			Address: endpoint.Addr,
-		})
-	}
-	strategy := api.SelectorStrategy_SELECTOR_STRATEGY_UNSPECIFIED
-	t := reflect.TypeOf(b.selector)
-	if reflect.TypeOf(&roundRobin.RoundRobin{}) == t {
-		strategy = api.SelectorStrategy_SELECTOR_STRATEGY_ROUND_ROBIN
-	}
-	if reflect.TypeOf(&randomSelector.Random{}) == t {
-		strategy = api.SelectorStrategy_SELECTOR_STRATEGY_RANDOM
-	}
-	if strategy == api.SelectorStrategy_SELECTOR_STRATEGY_UNSPECIFIED {
-		slog.Warn("No strategy configured")
-	}
-
-	return &api.Config{
-		Endpoints:     endpoints,
-		ListenPort:    cfg.ListenPort,
-		ListenAddress: cfg.ListenAddress,
-		HandlePostfix: cfg.HandlePostfix,
-		Strategy:      strategy,
-	}, nil
+func (b *BalanceServer) Configuration(ctx context.Context, in *emptypb.Empty) (*api.Config, error) {
+	return b.Client.Configuration(ctx, in)
 }
 
-func (b *balanceServer) Configure(ctx context.Context, config *api.Config) (*emptypb.Empty, error) {
-	if b.slb != nil {
-		slog.Info(fmt.Sprintf("Stopping server with previous configuration %v", b.slb.Configuration()))
-		if err := b.slb.Stop(); err != nil {
-			return &emptypb.Empty{}, err
-		}
-	}
+func (b *BalanceServer) Configure(ctx context.Context, config *api.Config) (*emptypb.Empty, error) {
+	return b.Client.Configure(ctx, config)
+}
 
-	slog.Info(fmt.Sprintf("Setting new configuration: %v", config))
-	newConfig := slb.Config{
-		Endpoints:     make([]*http.Server, 0),
-		ListenAddress: config.ListenAddress,
-		ListenPort:    config.ListenPort,
-		HandlePostfix: config.HandlePostfix,
-	}
-	for _, server := range config.Endpoints {
-		newConfig.Endpoints = append(newConfig.Endpoints, &http.Server{Addr: server.Address})
-	}
-
-	switch config.Strategy {
-	case api.SelectorStrategy_SELECTOR_STRATEGY_ROUND_ROBIN:
-		b.selector = roundRobin.New()
-	case api.SelectorStrategy_SELECTOR_STRATEGY_RANDOM:
-		b.selector = randomSelector.New()
-	default:
-		b.selector = roundRobin.New()
-	}
-
-	slb, err := slb.New(newConfig, b.selector)
+func (b *BalanceServer) Run(ctx context.Context, req *emptypb.Empty) (*emptypb.Empty, error) {
+	config, err := b.Client.Configuration(ctx, req)
 	if err != nil {
-		return &emptypb.Empty{}, err
+		return nil, err
 	}
-	b.slb = slb
-	return &emptypb.Empty{}, nil
+	if len(config.Endpoints) < 1 {
+		return nil, fmt.Errorf("%v endpoints configured. Use Add to add endpoints", len(config.Endpoints))
+	}
+	return b.Client.Run(ctx, req)
 }
 
-func (b *balanceServer) Run(ctx context.Context, req *emptypb.Empty) (*emptypb.Empty, error) {
-	if b.slb == nil {
-		return nil, ErrNotConfigured
-	}
-	go b.slb.Run()
-	slog.Info("Running ")
-	return req, nil
+func (b *BalanceServer) Stop(ctx context.Context, req *emptypb.Empty) (*emptypb.Empty, error) {
+	return b.Client.Stop(ctx, req)
 }
 
-func (b *balanceServer) Stop(ctx context.Context, req *emptypb.Empty) (*emptypb.Empty, error) {
-	if b.slb == nil {
-		return nil, ErrNotConfigured
-	}
-	return req, b.slb.Stop()
+func (b *BalanceServer) Add(ctx context.Context, server *api.Server) (*emptypb.Empty, error) {
+	return b.Client.Add(ctx, server)
 }
 
-func (b *balanceServer) Add(ctx context.Context, server *api.Server) (*emptypb.Empty, error) {
-	if b.selector == nil {
-		return nil, ErrNotConfigured
-	}
-	s := &http.Server{Addr: server.Address}
-	return &emptypb.Empty{}, b.selector.Add(s)
-}
-
-func (b *balanceServer) Remove(ctx context.Context, server *api.Server) (*emptypb.Empty, error) {
-	if b.selector == nil {
-		return nil, ErrNotConfigured
-	}
-	s := &http.Server{Addr: server.Address}
-	return &emptypb.Empty{}, b.selector.Remove(s)
+func (b *BalanceServer) Remove(ctx context.Context, server *api.Server) (*emptypb.Empty, error) {
+	return b.Client.Remove(ctx, server)
 }
 
 type ApiServer struct {
@@ -153,25 +77,20 @@ func (a *ApiServer) Stop() {
 	a.Server.GracefulStop()
 }
 
-func NewApiServer(creds credentials.TransportCredentials) *ApiServer {
+func NewApiServer(creds credentials.TransportCredentials, slbServer api.BalanceServer, port string) *ApiServer {
 	return &ApiServer{
-		Server: NewGrpcServer(creds),
-		Port:   DefaultApiPort,
+		Server: NewGrpcServer(creds, slbServer),
+		Port:   port,
 	}
 }
 
-func NewGrpcServer(creds credentials.TransportCredentials) *grpc.Server {
+func NewApiClient(creds credentials.TransportCredentials, serverAddress string, port string) (api.BalanceClient, error) {
+	conn, err := grpc.NewClient(serverAddress+":"+port, grpc.WithTransportCredentials(creds))
+	return api.NewBalanceClient(conn), err
+}
+
+func NewGrpcServer(creds credentials.TransportCredentials, slbServer api.BalanceServer) *grpc.Server {
 	s := grpc.NewServer(grpc.Creds(creds))
-	slbServer := &balanceServer{}
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
-	// Configure with default values
-	slbServer.Configure(ctx, &api.Config{
-		Strategy:      api.SelectorStrategy_SELECTOR_STRATEGY_ROUND_ROBIN,
-		ListenAddress: slb.DefaultListenAddress,
-		ListenPort:    slb.DefaultListenPort,
-		HandlePostfix: slb.DefaultHandlePostfix,
-	})
 	api.RegisterBalanceServer(s, slbServer)
 	reflection.Register(s)
 	return s
