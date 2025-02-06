@@ -2,12 +2,13 @@ package main
 
 import (
 	"balance/internal/apiService"
+	"balance/internal/balanceService"
 	"balance/internal/tls"
 	"log/slog"
 	"os"
 )
 
-const DefaultSlbAddress = "0.0.0.0"
+const ApiPort = "50051"
 
 func main() {
 	logHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
@@ -21,12 +22,27 @@ func main() {
 			os.Exit(1)
 		}
 	}()
-	creds, err := tls.GetTlsCredentials(tls.DefaultCAPath, tls.DefaultServiceCertPath, tls.DefaultServiceKeyPath)
+	serverCreds, err := tls.GetTlsCredentials(tls.DefaultCAPath, tls.DefaultServiceCertPath, tls.DefaultServiceKeyPath)
 	if err != nil {
 		panic(err)
 	}
-	apiServer := apiService.NewApiServer(creds)
+
+	slbServiceImpl := balanceService.NewBalanceService()
+	slbServer := apiService.NewApiServer(serverCreds, slbServiceImpl, ApiPort)
+	defer slbServer.Stop()
+	go slbServer.Start()
+
+	clientCreds, err := tls.GetTlsCredentials(tls.DefaultCAPath, tls.DefaultClientCertPath, tls.DefaultClientKeyPath)
+	if err != nil {
+		panic(err)
+	}
+	slbApiClient, err := apiService.NewApiClient(clientCreds, apiService.DefaultAddress, ApiPort)
+	if err != nil {
+		slog.Error(err.Error())
+		panic(err)
+	}
+	apiServerImpl := &apiService.BalanceServer{Client: slbApiClient}
+	apiServer := apiService.NewApiServer(serverCreds, apiServerImpl, apiService.DefaultApiPort)
 	defer apiServer.Stop()
 	apiServer.Start()
-	apiServer.Server.GetServiceInfo()
 }
